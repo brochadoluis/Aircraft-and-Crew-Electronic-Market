@@ -24,6 +24,7 @@ public class SellerAgent extends Agent {
      */
     private final String role = "Seller";
     private String company = "";
+    private MessageHandler msgHandler = new MessageHandler();
 
     protected void setup() {
         // Build the description used as template for the subscription
@@ -35,29 +36,9 @@ public class SellerAgent extends Agent {
         // sd.addProperties(new Property("country", "Italy"));
         dfd = dfs.register(sd, this);
         System.out.println("SELLER REGISTERED");
-        try {
-            System.out.println(getLocalName() + " is waiting for a message");
-            ACLMessage msg = blockingReceive();
-            //ACLMessage msg = receive(MessageTemplate.MatchPerformative(ACLMessage.INFORM));
-            //msg = receive(MessageTemplate.MatchPerformative(ACLMessage.CFP))
-            System.out.println(getLocalName() + " received msg" + msg);
-
-            if ("JavaSerialization".equals(msg.getLanguage())) {
-                Aircraft a1 = (Aircraft) msg.getContentObject();
-                String performative = Integer.toString(msg.getPerformative());
-                System.out.println(getLocalName() + " STRING PERFORMATIVE = " + performative + " AND INTEGER PERFORMATIVE = " + msg.getPerformative());
-                Aircraft a = new Aircraft(a1.getType(), a1.getCapacity());
-                System.out.println(getLocalName() + " read Java Object " + a1.getClass().getName() + " and " + a1.toString());
-                System.out.println(getLocalName() + "Aircraft A:");
-                a.printAircraft();
-                System.out.println("\n\n" + getLocalName() + " Aircraft A1: Type = " + a1.getType() + " and Capacity = " + a1.getCapacity());
-                a.printAircraft();
-            } else
-                System.out.println(getLocalName() + " read Java String " + msg.getContent());
-        } catch (UnreadableException e3) {
-            System.err.println(getLocalName() + " catched exception " + e3.getMessage());
-        }
-
-            /* Recebeu, processa e responde */
+        System.out.println(sd.getName() + " is waiting for a message");
+        ACLMessage msg = blockingReceive();
+        msgHandler.receiveMsg(this, msg);
+        /* Recebeu, processa e responde */
     }
 }

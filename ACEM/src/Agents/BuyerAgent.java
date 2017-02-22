@@ -41,6 +41,7 @@ public class BuyerAgent extends Agent{
     private Date scheduledDeparture, flightDuration, flightDelay;
     private final String role = "Buyer";
     private String company = "";
+    private MessageHandler msgHandler = new MessageHandler();
 
     protected void setup()
     {
@@ -66,7 +67,7 @@ public class BuyerAgent extends Agent{
         AID [] sellers = dfs.searchDF("Seller", this);
         System.out.print("\nSELLERS: ");
         for (AID seller:sellers){
-            // Mudar para comparar a companhia. Se for igual não entra para a lista de buyers
+            // Mudar para comparar a companhia. Se for a mesma, não entra para a lista de sellers
             if(!seller.getLocalName().equals(sd.getName())){
                 System.out.print( seller.getLocalName() + ",  ");
             }
@@ -82,35 +83,13 @@ public class BuyerAgent extends Agent{
         System.out.println("\nAircraft Missing: " + a1);
         System.out.println();
         /* Messaging */
-        AID reader = new AID();
+        msgHandler.sendCFP(this, sellers, a1);
         try {
-            ACLMessage msg = new ACLMessage(ACLMessage.CFP);
-
-            for (AID seller:sellers) {
-                msg.addReceiver(seller);
-            }
-            /*for(Integer i = 0; i < sellers.length; i++){
-                msg.addReceiver(sellers[i]);
-            }*/
-
-
-            msg.setContentObject(a1);
-            msg.setLanguage("JavaSerialization");
-            send(msg);
-            System.out.println(getLocalName()+" sent 1st msg "+msg);
-
-            msg.setDefaultEnvelope();
-            msg.getEnvelope().setAclRepresentation(FIPANames.ACLCodec.BITEFFICIENT);
-            send(msg);
-            System.out.println(getLocalName()+" sent 1st msg with bit-efficient aclCodec "+msg);
-
-            msg.getEnvelope().setAclRepresentation(FIPANames.ACLCodec.XML);
-            send(msg);
-            System.out.println(getLocalName()+" sent 1st msg with xml aclCodec "+msg);
-/* Enviou, bloqueia em espera por respostas = sellers.lenght */
-        } catch (IOException e ) {
+            Thread.sleep(10000);
+        } catch (InterruptedException e) {
             e.printStackTrace();
         }
+        System.out.println("Tenho de bloquear senao termino");
 
         doDelete();
         System.exit(0);

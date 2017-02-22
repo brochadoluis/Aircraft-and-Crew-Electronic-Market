@@ -7,9 +7,7 @@ import jade.core.AID;
 import jade.domain.DFService;
 import jade.domain.FIPAAgentManagement.*;
 import jade.domain.FIPAException;
-import jade.lang.acl.ACLMessage;
-import jade.proto.SubscriptionInitiator;
-import jade.util.leap.Iterator;
+
 
 /**
  * Created by Luis on 21/02/2017.
@@ -25,25 +23,25 @@ public class DFServices {
 
 // -------------------- Utility methods to access DF ----------------
 
-    protected DFAgentDescription register(ServiceDescription sd, Agent a)
+    protected DFAgentDescription register(ServiceDescription sd, Agent agent)
 //  --------------------------------------
     {
         DFAgentDescription dfd = new DFAgentDescription();
-        dfd.setName(a.getAID());
+        dfd.setName(agent.getAID());
         dfd.addServices(sd);
 
         try {
-            DFAgentDescription list[] = DFService.search( a, dfd );
+            DFAgentDescription list[] = DFService.search( agent, dfd );
             if ( list.length>0 )
-                DFService.deregister(a);
+                DFService.deregister(agent);
 
             dfd.addServices(sd);
-            DFService.register(a,dfd);
-            System.out.println(a.getLocalName()+ " succeeded in registration with DF");
+            DFService.register(agent,dfd);
+            System.out.println(agent.getLocalName()+ " succeeded in registration with DF");
         }
         catch (FIPAException fe) {
             fe.printStackTrace();
-            System.err.println(a.getLocalName() + " registration with DF unsucceeded. Reason: " + fe.getMessage());
+            System.err.println(agent.getLocalName() + " registration with DF unsucceeded. Reason: " + fe.getMessage());
         }
         return dfd;
     }
@@ -90,15 +88,15 @@ public class DFServices {
         return null;
     }
 
-    protected void subscription ( ServiceDescription sd, DFAgentDescription dfd, Agent a){
+    /*protected void subscription ( ServiceDescription sd, DFAgentDescription dfd, Agent agent){
 
         SearchConstraints sc = new SearchConstraints();
         // We want to receive all results
         sc.setMaxResults(new Long(-1));
 
-        a.addBehaviour(new SubscriptionInitiator(a, DFService.createSubscriptionMessage(a, a.getDefaultDF(), dfd, sc)) {
+        agent.addBehaviour(new SubscriptionInitiator(a, DFService.createSubscriptionMessage(a, agent.getDefaultDF(), dfd, sc)) {
             protected void handleInform(ACLMessage inform) {
-                System.out.println("Agent "+a.getLocalName()+": Notification received from DF");
+                System.out.println("Agent "+agent.getLocalName()+": Notification received from DF");
                 try {
                     System.out.println("Percebo 0 disto eheheh");
                     DFAgentDescription[] results = DFService.decodeNotification(inform.getContent());
@@ -129,5 +127,5 @@ public class DFServices {
                 }
             }
         } );
-    }
+    }*/
 }
