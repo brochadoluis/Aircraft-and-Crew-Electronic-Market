@@ -9,7 +9,6 @@ import jade.core.behaviours.OneShotBehaviour;
 import jade.domain.FIPAAgentManagement.*;
 import jade.lang.acl.ACLMessage;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 
 /**
@@ -32,8 +31,6 @@ public class BuyerAgent extends Agent{
      */
     List<ACLMessage> receivedMsgs = new ArrayList<>();
     Aircraft a1;
-    int propose = 0;
-
     protected void setup() {
         // initiateParameters();
         DFAgentDescription dfd;
@@ -107,46 +104,28 @@ public class BuyerAgent extends Agent{
             msgHandler = new MessageHandler();
             if (receivedMsgs.size() < marketHandler.getReceivers().length) {
                 ACLMessage receivedMsg = this.getAgent().receive();
-                //ACLMessage receivedMsg = blockingReceive();
-//                System.out.println(this.getAgent().getLocalName() + " received a message: " + receivedMsg);
-                Aircraft aircraftToBeLeased;
                 if (receivedMsg != null){
                     System.out.println(this.getAgent().getLocalName() + " received a message: " + receivedMsg);
                     marketHandler.processPerformative(this.getAgent(),receivedMsg,role);
-                  /*  System.out.println("Propose = " + propose);
-                    if(propose == 2)
-                    {
-                        System.out.println("O Propose esta igual a 2");
-                        msgHandler.prepareAccept(this.getAgent(),marketHandler.getReceivers(),a1);
-                    }*/
-                    /*if (receivedMsg.getPerformative() != ACLMessage.PROPOSE){
-                        aircraftToBeLeased = msgHandler.getMsgResources(this.getAgent(), receivedMsg);
-                        receivedMsgs.add(receivedMsg);
-                        aircraftToBeLeased.printAircraft();
-                        System.out.println("Time to propose another offer");
-                        //msgHandler.preparePropose(this.getAgent(), sellers, aircraftToBeLeased);
-                        msgHandler.prepareAccept(this.getAgent(),marketHandler.getReceivers(),a1);
-                        propose++;
-                        System.out.println("Propose inside that naughty if= " + propose);*/
-                    }
-                    block();
-                    /**
-                     * Aircraft aircraftToLease is the Resource received from another Company
-                     * Necessary to calculate the utility to evaluate if the Resource is worth or not
-                     */
                 }
+                block();
                 /**
-                 * TODO else needed here?
+                 * Aircraft aircraftToLease is the Resource received from another Company
+                 * Necessary to calculate the utility to evaluate if the Resource is worth or not
                  */
             }
             /**
-             * After receiving messages from all Sellers, there are tasks to be done
+             * TODO else needed here?
              */
-            //doDelete();
-            //onEnd();
         }
+        /**
+         * After receiving messages from all Sellers, there are tasks to be done
+         */
+        //doDelete();
+        //onEnd();
     }
-//}
+}
+
 
 
 

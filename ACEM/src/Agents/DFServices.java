@@ -1,9 +1,7 @@
 package Agents;
 
 import jade.core.Agent;
-import jade.core.behaviours.*;
 import jade.core.AID;
-
 import jade.domain.DFService;
 import jade.domain.FIPAAgentManagement.*;
 import jade.domain.FIPAException;
@@ -87,45 +85,4 @@ public class DFServices {
 
         return null;
     }
-
-    /*protected void subscription ( ServiceDescription sd, DFAgentDescription dfd, Agent agent){
-
-        SearchConstraints sc = new SearchConstraints();
-        // We want to receive all results
-        sc.setMaxResults(new Long(-1));
-
-        agent.addBehaviour(new SubscriptionInitiator(a, DFService.createSubscriptionMessage(a, agent.getDefaultDF(), dfd, sc)) {
-            protected void handleInform(ACLMessage inform) {
-                System.out.println("Agent "+agent.getLocalName()+": Notification received from DF");
-                try {
-                    System.out.println("Percebo 0 disto eheheh");
-                    DFAgentDescription[] results = DFService.decodeNotification(inform.getContent());
-                    if (results.length > 0) {
-                        System.out.println("Results > 0");
-                        for (int i = 0; i < results.length; ++i) {
-                            System.out.println("A escolher o servico");
-                            DFAgentDescription dfd = results[i];
-                            AID provider = dfd.getName();
-                            System.out.println("DFD NAME : " + dfd.getName());
-                            System.out.println("SD TYPE : " + sd.getType());
-                            // The same agent may provide several services; we are only interested
-                            // in the weather-forcast one
-                            Iterator it = dfd.getAllServices();
-                            while (it.hasNext()) {
-                                ServiceDescription sd = (ServiceDescription) it.next();
-                                if (sd.getType().equals("EM")) {
-                                    System.out.println("Seller service for Italy found:");
-                                    System.out.println("- Service \""+sd.getName()+"\" provided by agent "+provider.getName());
-                                }
-                            }
-                        }
-                    }
-                    System.out.println();
-                }
-                catch (FIPAException fe) {
-                    fe.printStackTrace();
-                }
-            }
-        } );
-    }*/
 }

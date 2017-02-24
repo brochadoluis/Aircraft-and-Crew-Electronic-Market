@@ -7,8 +7,6 @@ import jade.lang.acl.ACLMessage;
 import jade.lang.acl.UnreadableException;
 
 import java.io.IOException;
-import java.util.Iterator;
-import java.util.List;
 
 
 /**
@@ -17,8 +15,6 @@ import java.util.List;
 public class MessageHandler {
 
     public MessageHandler() {}
-    /* processPerformative returns type Resources REMOVE AGENT PARAMETER AFTER DEBUG */
-    /* Aircraft must be replaced by RESOURCES */
     /**
      * getMsgResources method converts the ACL message content
      * to Resource type
@@ -33,9 +29,6 @@ public class MessageHandler {
         } catch (UnreadableException e) {
             e.printStackTrace();
         }
-//        aircraftToBeLeased.printAircraft();
-        /*if(msg.getSender().getLocalName() != agent.getLocalName())
-            System.out.println("Nao envio mensagens para mim");*/
         return aircraftToBeLeased;
     }
 
@@ -63,14 +56,13 @@ public class MessageHandler {
     }
 
     /**
-     * preparesPropose method prepares a Propose message
-     * Adds receiver agent to sender's agent receiver list
-     * Porpose specifies the terms of the proposal, to lease the resource resource or similar
+     * preparesPropose method prepares a PROPOSE message
+     * Adds receiver agent to sender's agent receivers list
+     * PROPOSE specifies the terms of the proposal, to lease the resource resource or similar
      * @param sender: Agent who will send the Propose message
      * @param receivers: List of agents that will receive the propose message
      * @param aircraftToBeLeased: Resource contained in the Propose message
      */
-    //AQUI PRECISA DOS COMENTARIOS A PROPOSTA FEITA, NULL SE FOR O SELLER A ENVIAR, COM CONTEUDO SE FOR O BUYER
     protected void preparePropose(Agent sender, AID[] receivers, Aircraft aircraftToBeLeased) {
         try {
             ACLMessage propose = new ACLMessage(ACLMessage.PROPOSE);
@@ -78,7 +70,6 @@ public class MessageHandler {
             for (AID receiver:receivers) {
                 propose.addReceiver(receiver);
             }
-            //msg.addReceiver(receivers);
             propose.setContentObject(aircraftToBeLeased);
             serializeAndSend(sender,propose);
         } catch (IOException e){
@@ -87,7 +78,7 @@ public class MessageHandler {
     }
 
     /**
-     * preparesAccept method prepares a Accept_Proposal message
+     * preparesAccept method prepares an ACCEPT_PROPOSAL message
      * Adds a receiver agent to sender's agent receiver list,
      * @param sender: Agent who will send the Accept_Proposal message
      * @param receivers: Agent that wins the negotiation
@@ -103,20 +94,23 @@ public class MessageHandler {
             }
             accept.setContentObject(aircraftToBeLeased);
             serializeAndSend(sender,accept);
+            System.out.println("Vou matar este gajo");
         } catch (IOException e){
             e.printStackTrace();
         }
     }
+
+    //public void prepareReject(Agent sender, AID[] receivers, Aircraft aircraftToBeLeased)
+
     /**
      * serializeAndSend method serializes and sends an ACL message
      * @param sender TO BE REMOVED
      * @param msg: ACL message to be serialized and sent
      */
     protected void serializeAndSend(Agent sender,ACLMessage msg) {
-        //System.out.println("MSG = "+ msg);
         msg.setLanguage("JavaSerialization");
         sender.send(msg);
-        System.out.println("Message sent from " + sender.getLocalName());
+        System.out.println("MEssage sent from " + sender.getLocalName());
 
         // System.out.println(agent.getLocalName()+" sent 1st msg "+msg);
 

@@ -18,7 +18,7 @@ public class MarketHandler {
      * the respective processing method is called
      * @param agent TO BE REMOVED
      * @param msg: ACL Message to be processed
-     * @return Resources contained in msg
+     * @return
      */
     protected void processPerformative(Agent agent, ACLMessage msg, String role) {
         if ("JavaSerialization".equals(msg.getLanguage())) {
@@ -72,7 +72,7 @@ public class MarketHandler {
         a.printAircraft();
         /**
          * Fetch Resources in DataBase
-         * Compare Resourse form message with DataBase Fetch results
+         * Compare Resource form message with DataBase Fetch results
          * Select the most similar Resource found in DataBase, to the one asked
          * Compare both Resources
          * Calculate utility and price
