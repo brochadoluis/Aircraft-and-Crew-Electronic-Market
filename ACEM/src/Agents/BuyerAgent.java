@@ -1,32 +1,16 @@
 package Agents;
-/*
 
-
-import Utils.CrewMember;
-import Utils.Resources;
-import jade.core.*;
-import jade.domain.DFService;
-import jade.domain.FIPAAgentManagement.DFAgentDescription;
-import jade.domain.FIPAAgentManagement.SearchConstraints;
-import jade.domain.FIPAAgentManagement.ServiceDescription;
-import jade.domain.FIPAException;
-import jade.util.Logger;
-import jade.util.leap.Iterator;
-import sun.management.Agent;
-import Utils.Date;
-import java.lang.String;
-*/
 import Utils.*;
 
 import jade.core.Agent;
 import jade.core.AID;
-import jade.domain.DFService;
+import jade.core.behaviours.CyclicBehaviour;
+import jade.core.behaviours.OneShotBehaviour;
 import jade.domain.FIPAAgentManagement.*;
-import jade.domain.FIPANames;
 import jade.lang.acl.ACLMessage;
-
-import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 
 /**
  * Created by Luis on 20/02/2017.
@@ -42,13 +26,20 @@ public class BuyerAgent extends Agent{
     private final String role = "Buyer";
     private String company = "";
     private MessageHandler msgHandler = new MessageHandler();
+    private MarketHandler marketHandler;
+    /**
+     * TODO melhor estrutura para guardar do historico
+     */
+    List<ACLMessage> receivedMsgs = new ArrayList<>();
+    Aircraft a1;
+    int propose = 0;
 
-    protected void setup()
-    {
-       // initiateParameters();
+    protected void setup() {
+        // initiateParameters();
         DFAgentDescription dfd;
         DFServices dfs = new DFServices();
         ServiceDescription sd  = new ServiceDescription();
+        marketHandler = new MarketHandler();
         sd.setType(role);
         sd.setName( getLocalName() );
         //sd.addProperties(new Property("country", "Italy"));
@@ -64,35 +55,32 @@ public class BuyerAgent extends Agent{
                 +(agent==null ? "not Found" : agent.getName()));
         /* Saves to an array all sellers registered in DFService  */
         System.out.println("Uma lista bonita de sellers");
-        AID [] sellers = dfs.searchDF("Seller", this);
+        marketHandler.setReceivers(dfs.searchDF("Seller", this));
         System.out.print("\nSELLERS: ");
-        for (AID seller:sellers){
+        for (AID seller:marketHandler.getReceivers()){
             // Mudar para comparar a companhia. Se for a mesma, não entra para a lista de sellers
-            if(!seller.getLocalName().equals(sd.getName())){
-                System.out.print( seller.getLocalName() + ",  ");
-            }
+            //    if(!seller.getLocalName().equals(sd.getName())){
+            System.out.print( seller.getLocalName() + ",  ");
+            //  }
+            /**
+             * Found disruption
+             * Resource needed = new Aircraft("Boeing 777", 396);
+             */
+            a1  = new Aircraft("Boeing 777", 396);
+            marketHandler.setResourcesNeeded(a1);
         }
-        /*for (int i=0; i<sellers.length; i++){
-            // Mudar para comparar a companhia. Se for igual não entra para a lista de buyers
-            if(!sellers[i].getLocalName().equals(sd.getName())){
-                System.out.print( sellers[i].getLocalName() + ",  ");
-            }
-        }*/
-        Aircraft a1 = new Aircraft("Boeing 777", 396);
-        System.out.println("\nAircraft Missing: " + "Type = " + a1.getType() + " and Capacity = " + a1.getCapacity());
-        System.out.println("\nAircraft Missing: " + a1);
-        System.out.println();
-        /* Messaging */
-        msgHandler.sendCFP(this, sellers, a1);
-        try {
-            Thread.sleep(10000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-        System.out.println("Tenho de bloquear senao termino");
-
-        doDelete();
-        System.exit(0);
+        addBehaviour(new SendCFPBehaviour());
+        addBehaviour(new ListeningBehaviour());
+        /**
+         * Cyclic behaviour:
+         * Send CFP to all agents registered as sellers
+         * Start: Receive Proposals
+         * Evaluate them
+         * Answers with Comments/New Proposal?
+         * Jumps to Start
+         */
+        //doDelete();
+        //System.exit(0);
     }
 
     private void initiateParameters() {
@@ -101,7 +89,67 @@ public class BuyerAgent extends Agent{
          */
     }
 
+    private class SendCFPBehaviour extends OneShotBehaviour{
 
-}
+        @Override
+        public void action() {
+            msgHandler = new MessageHandler();
+            System.out.println("\nAircraft Missing: " + "Type = " + a1.getType() + " and Capacity = " + a1.getCapacity());
+            System.out.println();
+            msgHandler.prepareCFP(this.getAgent(), marketHandler.getReceivers(),a1);
+        }
+    }
+
+    private class ListeningBehaviour extends CyclicBehaviour{
+
+        @Override
+        public void action() {
+            msgHandler = new MessageHandler();
+            if (receivedMsgs.size() < marketHandler.getReceivers().length) {
+                ACLMessage receivedMsg = this.getAgent().receive();
+                //ACLMessage receivedMsg = blockingReceive();
+//                System.out.println(this.getAgent().getLocalName() + " received a message: " + receivedMsg);
+                Aircraft aircraftToBeLeased;
+                if (receivedMsg != null){
+                    System.out.println(this.getAgent().getLocalName() + " received a message: " + receivedMsg);
+                    marketHandler.processPerformative(this.getAgent(),receivedMsg,role);
+                  /*  System.out.println("Propose = " + propose);
+                    if(propose == 2)
+                    {
+                        System.out.println("O Propose esta igual a 2");
+                        msgHandler.prepareAccept(this.getAgent(),marketHandler.getReceivers(),a1);
+                    }*/
+                    /*if (receivedMsg.getPerformative() != ACLMessage.PROPOSE){
+                        aircraftToBeLeased = msgHandler.getMsgResources(this.getAgent(), receivedMsg);
+                        receivedMsgs.add(receivedMsg);
+                        aircraftToBeLeased.printAircraft();
+                        System.out.println("Time to propose another offer");
+                        //msgHandler.preparePropose(this.getAgent(), sellers, aircraftToBeLeased);
+                        msgHandler.prepareAccept(this.getAgent(),marketHandler.getReceivers(),a1);
+                        propose++;
+                        System.out.println("Propose inside that naughty if= " + propose);*/
+                    }
+                    block();
+                    /**
+                     * Aircraft aircraftToLease is the Resource received from another Company
+                     * Necessary to calculate the utility to evaluate if the Resource is worth or not
+                     */
+                }
+                /**
+                 * TODO else needed here?
+                 */
+            }
+            /**
+             * After receiving messages from all Sellers, there are tasks to be done
+             */
+            //doDelete();
+            //onEnd();
+        }
+    }
+//}
+
+
+
+
 
 
