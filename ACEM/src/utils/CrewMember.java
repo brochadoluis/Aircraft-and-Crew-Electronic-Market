@@ -1,4 +1,4 @@
-package Utils;
+package utils;
 
 import java.io.Serializable;
 
@@ -64,12 +64,9 @@ public class CrewMember extends Resource implements Serializable{
     }
 
     public boolean compareCrewMembers(CrewMember cm1){
-        if(cm1.getNumber().equals(this.getNumber()) &&
+        return(cm1.getNumber().equals(this.getNumber()) &&
                 cm1.getCategory().equals(this.getCategory()) &&
-                cm1.getQualifications().equals(this.getQualifications()))
-            return true;
-        else
-            return false;
+                cm1.getQualifications().equals(this.getQualifications()));
     }
 
     @Override

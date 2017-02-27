@@ -1,14 +1,11 @@
-package Agents;
+package agents;
 
-import Utils.*;
 import jade.core.AID;
 import jade.core.Agent;
 import jade.core.behaviours.CyclicBehaviour;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.domain.FIPAAgentManagement.ServiceDescription;
 import jade.lang.acl.ACLMessage;
-
-import java.util.ArrayList;
 
 /**
  * Created by Luis on 21/02/2017.

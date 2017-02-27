@@ -1,4 +1,4 @@
-package Utils;
+package utils;
 /**
  * Created by Luis on 20/02/2017.
  */

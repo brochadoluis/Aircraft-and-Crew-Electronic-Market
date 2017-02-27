@@ -1,4 +1,4 @@
-package Utils;
+package utils;
 
 import java.io.Serializable;
 
@@ -61,10 +61,8 @@ public class Aircraft extends Resource implements Serializable{
     }
 
     public boolean compareAircraft(Aircraft a1){
-        if(a1.getType().equals(this.getType()) && a1.getCapacity().equals(this.getCapacity()))
-            return true;
-        else
-            return false;
+        return(a1.getType().equals(this.getType()) &&
+                a1.getCapacity().equals(this.getCapacity()));
     }
 
     @Override

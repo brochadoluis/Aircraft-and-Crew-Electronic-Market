@@ -1,6 +1,6 @@
-package Agents;
+package agents;
 
-import Utils.*;
+import utils.*;
 import jade.core.AID;
 import jade.core.Agent;
 import jade.lang.acl.ACLMessage;
@@ -14,8 +14,6 @@ import java.util.ArrayList;
  * Created by Luis on 21/02/2017.
  */
 public class MessageHandler {
-
-    public MessageHandler() {}
     /**
      * getMsgResources method converts the ACL message content
      * to Resource type

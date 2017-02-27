@@ -1,6 +1,6 @@
-package Agents;
+package agents;
 
-import Utils.*;
+import utils.*;
 
 import jade.core.Agent;
 import jade.core.AID;
@@ -29,8 +29,8 @@ public class BuyerAgent extends Agent{
     /**
      * TODO melhor estrutura para guardar do historico
      */
-    List<ACLMessage> receivedMsgs = new ArrayList<>();
-    Resource a1,cm1;
+    private List<ACLMessage> receivedMsgs = new ArrayList<>();
+    private Resource a1,cm1;
     protected void setup() {
         // initiateParameters();
         DFAgentDescription dfd;
@@ -43,7 +43,7 @@ public class BuyerAgent extends Agent{
         dfd = dfs.register(sd, this);
 
         AID agent = dfs.getService("Buyer", this);
-        System.out.println("\nAgents: "
+        System.out.println("\nagents: "
                 +(agent==null ? "not Found" : agent.getName()));
         System.out.println("A procurar sellers");
 

@@ -1,6 +1,6 @@
-package Agents;
+package agents;
 
-import Utils.*;
+import utils.*;
 import jade.core.AID;
 import jade.core.Agent;
 import jade.lang.acl.ACLMessage;
@@ -57,6 +57,8 @@ public class MarketHandler {
                     System.out.println(agent.getLocalName() + " REJECT PROPOSAL RECEIVED ");
                     processReject(msg);
                     break;
+                    default:
+                        break;
             }
         } else{
             System.out.println("Unknown Performative");
@@ -195,6 +197,8 @@ public class MarketHandler {
                     msgHandler.preparePropose(agent,receivers,msgHandler.getMsgResources(agent,msg));
                 i++;
                 break;
+                default:
+                    break;
         }
         return msg;
     }
