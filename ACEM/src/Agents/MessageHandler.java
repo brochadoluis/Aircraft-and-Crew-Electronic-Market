@@ -1,12 +1,13 @@
 package Agents;
 
-import Utils.Aircraft;
+import Utils.*;
 import jade.core.AID;
 import jade.core.Agent;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.UnreadableException;
 
 import java.io.IOException;
+import java.util.ArrayList;
 
 
 /**
@@ -21,15 +22,15 @@ public class MessageHandler {
      * @param msg: ACL message to be procesed
      * @return Resources contained in msg
      */
-    protected Aircraft getMsgResources(Agent agent, ACLMessage msg) {
+    protected ArrayList<Resource> getMsgResources(Agent agent, ACLMessage msg) {
 
-        Aircraft aircraftToBeLeased = null;
+        ArrayList<Resource> resourcesToBeLeased = null;
         try {
-            aircraftToBeLeased = (Aircraft) msg.getContentObject();
+            resourcesToBeLeased = (ArrayList<Resource>) msg.getContentObject();
         } catch (UnreadableException e) {
             e.printStackTrace();
         }
-        return aircraftToBeLeased;
+        return resourcesToBeLeased;
     }
 
     /**
@@ -38,9 +39,9 @@ public class MessageHandler {
      * CFP message asks for proposals to lease a certain resource
      * @param sender: Agent who will send the Call-For-Proposal message
      * @param receivers: List of agents that will receive the Call-For-Proposal message
-     * @param aircraftToBeLeased: Resource contained in the Call-For-Proposal message
+     * @param resourcesToBeLeased: Resources contained in the Call-For-Proposal message
      */
-    protected void prepareCFP(Agent sender, AID [] receivers, Aircraft aircraftToBeLeased){
+    protected void prepareCFP(Agent sender, AID [] receivers, ArrayList<Resource> resourcesToBeLeased){
 
         try {
             ACLMessage cfp = new ACLMessage(ACLMessage.CFP);
@@ -48,7 +49,7 @@ public class MessageHandler {
             for (AID receiver:receivers) {
                 cfp.addReceiver(receiver);
             }
-            cfp.setContentObject(aircraftToBeLeased);
+            cfp.setContentObject(resourcesToBeLeased);
             serializeAndSend(sender,cfp);
         } catch (IOException e ) {
             e.printStackTrace();
@@ -61,16 +62,16 @@ public class MessageHandler {
      * PROPOSE specifies the terms of the proposal, to lease the resource resource or similar
      * @param sender: Agent who will send the Propose message
      * @param receivers: List of agents that will receive the propose message
-     * @param aircraftToBeLeased: Resource contained in the Propose message
+     * @param resourcesToBeLeased: Resources contained in the Propose message
      */
-    protected void preparePropose(Agent sender, AID[] receivers, Aircraft aircraftToBeLeased) {
+    protected void preparePropose(Agent sender, AID[] receivers, ArrayList<Resource> resourcesToBeLeased) {
         try {
             ACLMessage propose = new ACLMessage(ACLMessage.PROPOSE);
             System.out.println("Performative : " + propose.getPerformative());
             for (AID receiver:receivers) {
                 propose.addReceiver(receiver);
             }
-            propose.setContentObject(aircraftToBeLeased);
+            propose.setContentObject(resourcesToBeLeased);
             serializeAndSend(sender,propose);
         } catch (IOException e){
             e.printStackTrace();
@@ -82,9 +83,9 @@ public class MessageHandler {
      * Adds a receiver agent to sender's agent receiver list,
      * @param sender: Agent who will send the Accept_Proposal message
      * @param receivers: Agent that wins the negotiation
-     * @param aircraftToBeLeased: Resource contained in the Propose message
+     * @param resourcesToBeLeased: Resources contained in the Propose message
      */
-    public void prepareAccept(Agent sender, AID[] receivers, Aircraft aircraftToBeLeased) {
+    public void prepareAccept(Agent sender, AID[] receivers, ArrayList<Resource> resourcesToBeLeased) {
         try {
             ACLMessage accept = new ACLMessage(ACLMessage.ACCEPT_PROPOSAL);
             System.out.println("Performative : " + accept.getPerformative());
@@ -92,7 +93,7 @@ public class MessageHandler {
                 accept.addReceiver(receiver);
                 System.out.println("Receiver = "+ receiver);
             }
-            accept.setContentObject(aircraftToBeLeased);
+            accept.setContentObject(resourcesToBeLeased);
             serializeAndSend(sender,accept);
             System.out.println("Vou matar este gajo");
         } catch (IOException e){
@@ -100,7 +101,7 @@ public class MessageHandler {
         }
     }
 
-    //public void prepareReject(Agent sender, AID[] receivers, Aircraft aircraftToBeLeased)
+    //public void prepareReject(Agent sender, AID[] receivers, ArrayList<Resource> resourcesToBeLeased)
 
     /**
      * serializeAndSend method serializes and sends an ACL message

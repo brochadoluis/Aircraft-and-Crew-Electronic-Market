@@ -5,7 +5,7 @@ import java.io.Serializable;
 /**
  * Created by Luis on 20/02/2017.
  */
-public class CrewMember extends Resources implements Serializable{
+public class CrewMember extends Resource implements Serializable{
     /**
      * Needed crew members : @number
      * Needed crew members category : @category
@@ -15,12 +15,20 @@ public class CrewMember extends Resources implements Serializable{
     private String category;
     private String qualifications;
 
-    public CrewMember(Integer number, String category, String qualifications) {
+    /*public CrewMember(Integer number, String category, String qualifications) {
+        this.number = number;
+        this.category = category;
+        this.qualifications = qualifications;
+    }*/
+
+    public CrewMember(float price, Integer number, String category, String qualifications) {
+        super(price);
         this.number = number;
         this.category = category;
         this.qualifications = qualifications;
     }
 
+    @Override
     public Integer getNumber() {
         return number;
     }
@@ -29,6 +37,7 @@ public class CrewMember extends Resources implements Serializable{
         this.number = number;
     }
 
+    @Override
     public String getCategory() {
         return category;
     }
@@ -37,11 +46,48 @@ public class CrewMember extends Resources implements Serializable{
         this.category = category;
     }
 
+    @Override
     public String getQualifications() {
         return qualifications;
     }
 
     public void setQualifications(String qualifications) {
         this.qualifications = qualifications;
+    }
+
+    @Override
+    public void printResource() {
+        System.out.print("Crew Member Number = " + this.number +", Crew Member Category =  "
+                + this.category +" and Crew Member qualifications =  " + this.qualifications + " with ");
+        super.print();
+        System.out.println();
+    }
+
+    public boolean compareCrewMembers(CrewMember cm1){
+        if(cm1.getNumber().equals(this.getNumber()) &&
+                cm1.getCategory().equals(this.getCategory()) &&
+                cm1.getQualifications().equals(this.getQualifications()))
+            return true;
+        else
+            return false;
+    }
+
+    @Override
+    public boolean compareResource(Resource r1) {
+        if(r1.getClass().equals(this.getClass())){
+
+            return compareCrewMembers((CrewMember) r1);
+        }
+        return false;
+    }
+
+    @Override
+    public String getType() {
+        return null;
+    }
+
+    @Override
+    public Integer getCapacity() {
+        return null;
     }
 }

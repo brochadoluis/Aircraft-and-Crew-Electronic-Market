@@ -19,7 +19,7 @@ public class BuyerAgent extends Agent{
      * Resources to search in the EM: @missingResources
      * Company's Identifier: @company
      */
-    private ArrayList<Aircraft> missingResources = new ArrayList<>();
+    private ArrayList<Resource> resourcesMissing = new ArrayList<>();
     private float resourcesCost;
     private Date scheduledDeparture, flightDuration, flightDelay;
     private final String role = "Buyer";
@@ -30,7 +30,7 @@ public class BuyerAgent extends Agent{
      * TODO melhor estrutura para guardar do historico
      */
     List<ACLMessage> receivedMsgs = new ArrayList<>();
-    Aircraft a1;
+    Resource a1,cm1;
     protected void setup() {
         // initiateParameters();
         DFAgentDescription dfd;
@@ -63,8 +63,12 @@ public class BuyerAgent extends Agent{
              * Found disruption
              * Resource needed = new Aircraft("Boeing 777", 396);
              */
-            a1  = new Aircraft("Boeing 777", 396);
-            marketHandler.setResourcesNeeded(a1);
+            //The price established by Buyer is the maximum to be paid
+            a1  = new Aircraft(1432.53f,"Boeing 777", 396);
+            cm1 = new CrewMember(3840.54f,2, "Pilot", "English A2");
+            resourcesMissing.add(a1);
+            resourcesMissing.add(cm1);
+            marketHandler.setResourcesNeeded(resourcesMissing);
         }
         addBehaviour(new SendCFPBehaviour());
         addBehaviour(new ListeningBehaviour());
@@ -79,6 +83,9 @@ public class BuyerAgent extends Agent{
         //doDelete();
         //System.exit(0);
     }
+    protected void takeDown() {
+        System.out.println("Bye...");
+    }
 
     private void initiateParameters() {
         /**
@@ -91,12 +98,18 @@ public class BuyerAgent extends Agent{
         @Override
         public void action() {
             msgHandler = new MessageHandler();
-            System.out.println("\nAircraft Missing: " + "Type = " + a1.getType() + " and Capacity = " + a1.getCapacity());
+            //System.out.println("\nAircraft Missing: " + "Type = " + a1.getType() + " and Capacity = " + a1.getCapacity());
+            for (Resource r:resourcesMissing) {
+                r.printResource();
+            }
             System.out.println();
-            msgHandler.prepareCFP(this.getAgent(), marketHandler.getReceivers(),a1);
+            msgHandler.prepareCFP(this.getAgent(), marketHandler.getReceivers(), resourcesMissing);
         }
     }
 
+    /**
+     * Needs a doDelete() when sends a AcceptProposal
+     */
     private class ListeningBehaviour extends CyclicBehaviour{
 
         @Override

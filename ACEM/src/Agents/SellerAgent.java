@@ -1,11 +1,14 @@
 package Agents;
 
+import Utils.*;
 import jade.core.AID;
 import jade.core.Agent;
 import jade.core.behaviours.CyclicBehaviour;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.domain.FIPAAgentManagement.ServiceDescription;
 import jade.lang.acl.ACLMessage;
+
+import java.util.ArrayList;
 
 /**
  * Created by Luis on 21/02/2017.
@@ -32,13 +35,16 @@ public class SellerAgent extends Agent {
         dfd = dfs.register(sd, this);
         addBehaviour(new ListeningBehaviour());
         marketHandler = new MarketHandler();
-
         /**
          * Msg Handler returns the resources asked for. The Agent must check if there are any resources available
          * and create a propose msg with the best fit
          * sendPropossMsg
          */
-    };
+    }
+
+    /**
+     * After receiving a ACCEPT_PROPOSAL and finishs the contract, needs to deregister, update resources and register again
+     */
     private class ListeningBehaviour extends CyclicBehaviour{
 
         @Override

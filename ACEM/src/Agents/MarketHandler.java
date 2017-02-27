@@ -1,9 +1,12 @@
 package Agents;
 
-import Utils.Aircraft;
+import Utils.*;
 import jade.core.AID;
 import jade.core.Agent;
 import jade.lang.acl.ACLMessage;
+
+import java.util.ArrayList;
+import java.util.HashMap;
 
 /**
  * Created by Luis on 24/02/2017.
@@ -11,7 +14,9 @@ import jade.lang.acl.ACLMessage;
 public class MarketHandler {
     private MessageHandler msgHandler = new MessageHandler();
     private AID[] receivers;
-    private Aircraft resourcesNeeded;
+    private ArrayList<Resource> resourcesNeeded;
+    private ArrayList<Resource> availableResources = new ArrayList<>();
+    private ArrayList<Resource> possibleMatches;
     private int i = 0;
     /**
      * processPerformative method gets a message's performative and according to the message's performative,
@@ -61,15 +66,25 @@ public class MarketHandler {
     /**
      * processCFP method gets the resources in the CFP received, processes it,
      * compares it to method invoker own resources and prepares a proposal
-     * @param sender: TO BE REMOVED
+     * @param agent: TO BE REMOVED
      * @param msg: ACL message received by the method invoker. In this case, a CFP message
      * @return
      */
-    private ACLMessage processCFP(Agent sender, ACLMessage msg) {
+    private ACLMessage processCFP(Agent agent, ACLMessage msg) {
         msgHandler = new MessageHandler();
-        Aircraft a = msgHandler.getMsgResources(sender,msg);
+
+        ArrayList<Resource> askedResources = msgHandler.getMsgResources(agent,msg);
         System.out.println("PROCESS CFP \n\n\nResources asked:\n");
-        a.printAircraft();
+        for (Resource asked:askedResources) {
+            asked.printResource();
+        }
+        //Fetch funtion, writes to an ArrayList the resources available
+        getAvailableResources(agent);
+        //Compare the resources asked with the ones available
+        possibleMatches = compareAskedResourceWithAvailableOnes(askedResources,availableResources);
+
+        ArrayList<Resource> solutions = new ArrayList<>();
+        solutions.add(findBestSolution(possibleMatches));
         /**
          * Fetch Resources in DataBase
          * Compare Resource form message with DataBase Fetch results
@@ -78,19 +93,54 @@ public class MarketHandler {
          * Calculate utility and price
          * To test, the resource found is defined below
          */
-        Aircraft solution = new Aircraft("Airbus 747",400);
         /**
          * In the case of seller, use addReplyTo?
          */
-        msgHandler.preparePropose(sender,receivers,solution);
+        msgHandler.preparePropose(agent,receivers,solutions);
         return msg;
+    }
+
+    private Resource findBestSolution(ArrayList<Resource> possibleMatches) {
+        /**
+         * Chave Resource, Valor Double, uma vez que esta a receber uma lista de
+         * Rescursos, assim encontra-se o recursos pretendido e manda-se para a stack/queue/list
+         * E quando se encontrar um melhor remove-se o recurso a ser substituido.
+         */
+        HashMap<Resource,Double> utilitiesMap = new HashMap<Resource, Double>();
+        /**
+         * Aplica funçao de utilidade aos recursos encontrados e retorna o melhor.
+         * Escolhe sempre os recursos cujos emprestimos tenham a maior utilidade para o seller
+         * Neste caso escolhe o recurso pedido, uma vez que ainda nao ha funçoes para o calculo das utilidades
+         * nem estão incluidos os tempos de partida e atraso dos voos.
+         */
+        if(possibleMatches.size() == 0)
+            //Ver como proceder aqui. Seller abandona negociaçoes?
+            System.out.println("Resource not available");
+        //Only one possible match
+        if(possibleMatches.size() == 1)
+            return possibleMatches.get(0);
+        else{
+            //for (Resource resource:possibleMatches){
+            /**
+             * Calculates utility
+             * Adds resource to map
+             */
+            //}
+            /**
+             * Iterates through the Hashmap
+             * Finds the resource with the highest utility
+             * Adds it to a list
+             * Returns a list with the resources to be negotiated
+             */
+        }
+        return possibleMatches.get(0);
     }
 
     //ESTA FUNCAO PROCESSA OS COMENTARIOS NA MENSAGEM, NO CASO DO SELLER, PARA MELHORAR A PROPOSTA
     /**
      * processPropose method evaluates the proposal received, improves it and proposes it again
      * until an agreement is reached
-     * @param sender: TO BE REMOVED
+     * @param agent: TO BE REMOVED
      * @param msg: ACL message received by method invoker. In this case, a PROPOSE message
      *           it contains the resources under negotiation. In the case of being invoked
      *           by the BUYER role,the message contains only the resources and price.
@@ -100,13 +150,13 @@ public class MarketHandler {
      * @param role: Role played by the agent who invoked this method
      * @return
      */
-    private ACLMessage processPropose(Agent sender, ACLMessage msg, String role) {
+    private ACLMessage processPropose(Agent agent, ACLMessage msg, String role) {
         msgHandler = new MessageHandler();
         /**
          * If Seller, evaluate ultility and comments
          * Use agentStrategy to improve proposal
          * If Buyer, evaluate all proposal's utility
-         * selects the best and proposes to all Sellers but sender
+         * selects the best and proposes to all Sellers but agent
          * the best proposal received.
          *
          */
@@ -117,21 +167,32 @@ public class MarketHandler {
                  * cenas descritas acima
                  */
                 //At this point, receivers list can only have one receiver
-                if(msgHandler.getMsgResources(sender,msg).compareAircrafts(resourcesNeeded)){
-                    msgHandler.prepareAccept(sender,receivers,resourcesNeeded);
+                for (Resource resource:msgHandler.getMsgResources(agent,msg)) {
+                    for (Resource resourceNeeded : resourcesNeeded) {
+                        if (resource.compareResource(resourceNeeded)) {
+                            msgHandler.prepareAccept(agent, receivers, resourcesNeeded);
+                        }
+                        msgHandler.preparePropose(agent, receivers, resourcesNeeded);
+                    }
                 }
-                msgHandler.preparePropose(sender,receivers,resourcesNeeded);
+                float totalPrice = 0;
+                for (Resource r:msgHandler.getMsgResources(agent,msg)) {
+                    totalPrice+= r.getPrice();
+                }
+                System.out.println("Proposal total cost = " +totalPrice );
                 break;
             case "Seller":
                 System.out.println("Sou o SELLER\n");
                 System.out.println("Recebi o seguinte recurso: \n");
-                msgHandler.getMsgResources(sender,msg).printAircraft();
+                //msgHandler.getMsgResources(agent,msg).printResource();
                 if(i == 3){
-                    Aircraft finalAircraft = new Aircraft("Boeing 777", 396);
-                    msgHandler.preparePropose(sender,receivers,finalAircraft);
+                    ArrayList<Resource> finalResourcesList = new ArrayList<>();
+                    Resource finalResource = new Aircraft(1432.53f,"Boeing 777", 396);
+                    finalResourcesList.add(finalResource);
+                    msgHandler.preparePropose(agent,receivers,finalResourcesList);
                 }
                 else
-                    msgHandler.preparePropose(sender,receivers,msgHandler.getMsgResources(sender,msg));
+                    msgHandler.preparePropose(agent,receivers,msgHandler.getMsgResources(agent,msg));
                 i++;
                 break;
         }
@@ -177,8 +238,39 @@ public class MarketHandler {
         this.receivers = receivers;
     }
 
-    public void setResourcesNeeded(Aircraft resourcesNeeded) {
-        this.resourcesNeeded = resourcesNeeded;
+    public void setResourcesNeeded(ArrayList<Resource>  resourcesMissing) {
+        this.resourcesNeeded = resourcesMissing;
     }
 
+    private void getAvailableResources(Agent agent) {
+        Resource r1 = new Aircraft(1200.534f,"Boeing 777", 396);
+        Resource r2 = new CrewMember(3840.54f,2, "Pilot", "English A2");
+        Resource r3 = new Aircraft(1200.534f,"Boeing 767", 375);
+        Resource r4 = new CrewMember(689.54f,8, "Flight Attendant", "English B2");
+        Resource r5 = new Aircraft(1200.534f,"Airbus A318", 132);
+        Resource r6 = new CrewMember(689.54f,1, "Flight Medic", "English A2");
+        Resource r7 = new Aircraft(1200.534f,"Airbus A330-200 Freighter", 407);
+        Resource r8 = new CrewMember(689.54f,4, "Load Master", "English C2");
+        availableResources.add(r1);
+        availableResources.add(r2);
+        availableResources.add(r3);
+        availableResources.add(r4);
+        availableResources.add(r5);
+        availableResources.add(r6);
+        availableResources.add(r7);
+        availableResources.add(r8);
+    }
+
+    private ArrayList<Resource> compareAskedResourceWithAvailableOnes(ArrayList<Resource> askedResources, ArrayList<Resource> availableResources) {
+        possibleMatches = new ArrayList<>();
+        for (Resource askedResource:askedResources) {
+            for (Resource resource : availableResources) {
+                if (!resource.compareResource(askedResource))
+                    continue;
+                else
+                    possibleMatches.add(resource);
+            }
+        }
+        return possibleMatches;
+    }
 }
