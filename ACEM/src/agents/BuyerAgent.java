@@ -1,38 +1,45 @@
 package agents;
 
-import jade.domain.DFService;
-import jade.domain.FIPAException;
-import jade.domain.FIPANames;
-import utils.*;
-
-import jade.core.Agent;
 import jade.core.AID;
+import jade.core.Agent;
 import jade.core.behaviours.CyclicBehaviour;
-import jade.core.behaviours.OneShotBehaviour;
-import jade.domain.FIPAAgentManagement.*;
+import jade.domain.FIPAAgentManagement.DFAgentDescription;
+import jade.domain.FIPAAgentManagement.NotUnderstoodException;
+import jade.domain.FIPAAgentManagement.RefuseException;
+import jade.domain.FIPAAgentManagement.ServiceDescription;
+import jade.domain.FIPANames;
 import jade.lang.acl.ACLMessage;
+import jade.lang.acl.UnreadableException;
+import jade.proto.ContractNetInitiator;
+import utils.Aircraft;
+import utils.CrewMember;
+import utils.Resource;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Objects;
+import java.io.Serializable;
+import java.util.*;
+
 
 /**
  * Created by Luis on 20/02/2017.
  */
-public class BuyerAgent extends Agent{
+public class BuyerAgent extends Agent implements Serializable{
     /**
      * Resources to search in the EM: @missingResources
      * Company's Identifier: @company
+     *
+     *
+     * Sends first CFP
+     * Calls behaviour with msg handlers
      */
     private ArrayList<Resource> resourcesMissing = new ArrayList<>();
-    private float resourcesCost, maximumDisruptionCost;
+    private float resourcesCost;
+    private double maximumDisruptionCost;
     //private Data scheduledDeparture, flightDuration, flightDelay;
     private final String role = "Buyer";
     private String company = "";
-    private MessageHandler msgHandler = new MessageHandler();
-    private MarketHandler marketHandler;
+    private ArrayList<AID> sellers = new ArrayList<>();
+    private int negotiationParticipants;
     /**
      * TODO melhor estrutura para guardar do historico
      */
@@ -40,79 +47,145 @@ public class BuyerAgent extends Agent{
     private Resource a1,cm1;
     protected void setup() {
         // initiateParameters();
-        DFServices dfs = registerInDFS();
-        findReceivers(dfs);
-        /**
-         * Connection to DB
-         * Found disruption
-         * Resource needed = new Aircraft("Boeing 777", 396);
-         */
-        //The price calculated by Buyer is the maximum to be paid
-        a1  = new Aircraft(0f,"Boeing 777", 396);
-        cm1 = new CrewMember(0f,2, "Pilot", "English A2");
-        resourcesMissing.add(a1);
-        resourcesMissing.add(cm1);
-        marketHandler.setResourcesNeeded(resourcesMissing);
-        DFAgentDescription dfd = new DFAgentDescription();
-        System.out.println("My AID = " + this.getAID());
-        try {
-            DFAgentDescription list[] = DFService.search( this, dfd );
-            for (DFAgentDescription element:list) {
-                System.out.println("Portanto " + element.getName());
-                if(Objects.equals(element.getName(), this.getAID()))
-                    System.out.println("Sou o mesmo agente. Problema parcialmente resolvido");
+        // Read the maximum cost as argument
+        Object[] args = getArguments();
+        if (args != null && args.length > 0) {
+            maximumDisruptionCost = (double) args[0];
+            System.out.println("Worst case scenario " + maximumDisruptionCost + " € as cost.");
+            DFServices dfs = registerInDFS();
+            findReceivers(dfs);
+            /**
+             * Connection to DB
+             * Found disruption
+             * Resource needed = new Aircraft("Boeing 777", 396);
+             */
+            //The price calculated by Buyer is the maximum to be paid
+            a1 = new Aircraft(0f, "Boeing 777", 396);
+            cm1 = new CrewMember(0f, 2, "Pilot", "English A2");
+            resourcesMissing.add(a1);
+            resourcesMissing.add(cm1);
+            negotiationParticipants = sellers.size();
+            DFAgentDescription dfd = new DFAgentDescription();
+            // Fill the CFP message
+            ACLMessage msg = new ACLMessage(ACLMessage.CFP);
+            for (AID seller:sellers) {
+                msg.addReceiver(seller);
             }
-        } catch (FIPAException e) {
-            e.printStackTrace();
-        }
+            msg.setProtocol(FIPANames.InteractionProtocol.FIPA_CONTRACT_NET);
+            // We want to receive a reply in 10 secs
+            msg.setReplyByDate(new Date(System.currentTimeMillis() + 10000));
+            try {
+                msg.setContentObject(resourcesMissing);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            addBehaviour(new ContractNetInitiator(this, msg){
+                protected void handlePropose(ACLMessage propose, Vector v) {
+                    try {
+                        System.out.println("Agent "+propose.getSender().getName()+" proposed "+propose.getContentObject());
+                    } catch (UnreadableException e) {
+                        e.printStackTrace();
+                    }
+                }
 
-        sendFirstCPF();
-        addBehaviour(new SendCFPBehaviour());
-        addBehaviour(new ListeningBehaviour());
-        /**
-         * Cyclic behaviour:
-         * Send CFP to all agents registered as sellers
-         * Start: Receive Proposals
-         * Evaluate them
-         * Answers with Comments/New Proposal?
-         * Jumps to Start
-         */
-        //doDelete();
-        //System.exit(0);
+                protected void handleRefuse(ACLMessage refuse) {
+                    System.out.println("Agent "+refuse.getSender().getName()+" refused");
+                }
+
+                protected void handleFailure(Agent agent, ACLMessage failure) {
+                    if (failure.getSender().equals(agent.getAMS())) {
+                        // FAILURE notification from the JADE runtime: the receiver
+                        // does not exist
+                        System.out.println("Responder does not exist");
+                    }
+                    else {
+                        System.out.println("Agent "+failure.getSender().getName()+" failed");
+                    }
+                    // Immediate failure --> we will not receive a response from this agent
+                    negotiationParticipants--;
+                }
+
+                protected void handleAllResponses(Vector responses, Vector acceptances) {
+                    if (responses.size() < negotiationParticipants) {
+                        // Some responder didn't reply within the specified timeout
+                        System.out.println("Timeout expired: missing "+(negotiationParticipants - responses.size())+" responses");
+                    }
+                    // Evaluate proposals.
+                    //int bestProposal = -1;
+                    ArrayList<Resource> bestProposal = new ArrayList<>();
+                    AID bestProposer = null;
+                    ACLMessage accept = null;
+                    Enumeration e = responses.elements();
+                    while (e.hasMoreElements()) {
+                        ACLMessage msg = (ACLMessage) e.nextElement();
+                        if (msg.getPerformative() == ACLMessage.PROPOSE) {
+                            ACLMessage reply = msg.createReply();
+                            reply.setPerformative(ACLMessage.REJECT_PROPOSAL);
+                            acceptances.addElement(reply);
+                            ArrayList<Resource >resourcesFromProposal = getMsgResources(msg);
+                            // Auxiliar ArrayList to compare if proposed resources are equal to the ones needed
+                            ArrayList<Resource> resourcesProposed = getMsgResources(msg);
+                            if(proposalMeetsNeeds(msg.getSender(), resourcesProposed, resourcesMissing)){
+                                //if (proposal > bestProposal) {
+                                //  bestProposal = proposal;
+                                bestProposer = msg.getSender();
+                                accept = reply;
+                                bestProposal = new ArrayList<>(resourcesFromProposal);
+                            }
+                        }
+                    }
+                    // Accept the proposal of the best proposer
+                    if (accept != null) {
+                        System.out.println("Accepting proposal "+bestProposal+" from responder "+bestProposer.getName());
+                        accept.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
+                    }
+                }
+
+                protected void handleInform(ACLMessage inform) {
+                    System.out.println("Agent "+inform.getSender().getName()+" successfully performed the requested action");
+                    doDelete();
+                }
+                //doDelete();
+                //System.exit(0);
+            });
+        }
     }
 
-    private void sendFirstCPF() {
-        ACLMessage msg = new ACLMessage(ACLMessage.CFP);
-        msg.setProtocol(FIPANames.InteractionProtocol.FIPA_CONTRACT_NET);
-        // We want to receive a reply in 10 secs
-        System.currentTimeMillis();
-        msg.setReplyByDate(new Date(System.currentTimeMillis()+10000));
-        try {
-            msg.setContentObject(resourcesMissing);
-        } catch (IOException e) {
-            e.printStackTrace();
+    private boolean proposalMeetsNeeds(AID receiver, ArrayList<Resource> resourcesProposed, ArrayList<Resource> resourcesAsked) {
+        System.out.println("Resources Received: \n\n");
+        System.out.println("RFP size = "+ resourcesProposed.size() );
+        System.out.println("RA size = "+ resourcesAsked.size() );
+        for(int i = 0; i < resourcesAsked.size(); i++){
+            for(int j = 0; j < resourcesProposed.size(); j++){
+                if(resourcesAsked.get(i).compareResource(resourcesProposed.get(j))){
+                    resourcesProposed.remove(j);
+                }
+                else
+                    continue;
+            }
         }
+        if(resourcesProposed.isEmpty())
+            return true;
 
+        else
+            return false;
     }
 
     private void findReceivers(DFServices dfs) {
-        AID agent = dfs.getService("Buyer", this);
+        AID agent = dfs.getService(this);
         System.out.println("\nagents: "
                 +(agent==null ? "not Found" : agent.getName()));
         System.out.println("A procurar sellers");
-
-        agent = dfs.getService("Seller",this);
+        agent = dfs.getService(this);
         System.out.println("\nSeller: "
                 +(agent==null ? "not Found" : agent.getName()));
-        /* Saves to an array all sellers registered in DFService  */
+        /* Saves to an ArrayList all other agents registered in DFService  */
         System.out.println("Uma lista bonita de sellers");
-//        AID[] sellers = dfs.searchDF("Seller", this);
-        marketHandler.setReceivers(dfs.searchDF( "Seller",this));
-        System.out.print("\nSELLERS: ");
-        for (AID seller:marketHandler.getReceivers()){
-            // Mudar para comparar a companhia? Se for a mesma, não entra para a lista de sellers
-            //    if(!seller.getLocalName().equals(sd.getName())){
-            System.out.print( seller.getLocalName() + ",  ");
+        sellers = dfs.searchDF(this);
+        System.out.println("\nSELLERS: ");
+        for (AID seller:sellers) {
+            System.out.println(seller.getName() + ",  ");
+            System.out.println(seller.getLocalName() + ",  ");
         }
     }
 
@@ -120,23 +193,11 @@ public class BuyerAgent extends Agent{
         DFAgentDescription dfd = new DFAgentDescription();
         DFServices dfs = new DFServices();
         ServiceDescription sd  = new ServiceDescription();
-        marketHandler = new MarketHandler();
-        sd.setType(role);
+        //sd.setType(role);
         sd.setName( getLocalName() );
         //sd.addProperties(new Property("country", "Italy"));
-        dfd = dfs.register(sd, this);
+        dfd = dfs.register(this);
         return dfs;
-    }
-
-    protected void takeDown() {
-        System.out.println("Deregister " + this.getLocalName() +" from DFS. Bye...");
-        // Deregister from the yellow pages
-        try {
-            DFService.deregister(this);
-        }
-        catch (FIPAException fe) {
-            fe.printStackTrace();
-        }
     }
 
     private void initiateParameters() {
@@ -144,51 +205,15 @@ public class BuyerAgent extends Agent{
          * Connect to DB and read values
          */
     }
+    protected ArrayList<Resource> getMsgResources(ACLMessage msg) {
 
-    private class SendCFPBehaviour extends OneShotBehaviour{
-
-        @Override
-        public void action() {
-            msgHandler = new MessageHandler();
-            System.out.println("\n\n\n\nResources Needed:");
-            for (Resource r:resourcesMissing) {
-                r.printResource();
-            }
-            System.out.println();
-            msgHandler.prepareCFP(this.getAgent(), marketHandler.getReceivers(), resourcesMissing);
+        ArrayList<Resource> resourcesToBeLeased = null;
+        try {
+            resourcesToBeLeased = (ArrayList<Resource>) msg.getContentObject();
+        } catch (UnreadableException e) {
+            e.printStackTrace();
         }
-    }
-
-    /**
-     * Needs a doDelete() when sends a AcceptProposal
-     */
-    private class ListeningBehaviour extends CyclicBehaviour{
-
-        @Override
-        public void action() {
-            msgHandler = new MessageHandler();
-            if (receivedMsgs.size() < marketHandler.getReceivers().length) {
-                ACLMessage receivedMsg = this.getAgent().receive();
-                if (receivedMsg != null){
-                    System.out.println(this.getAgent().getLocalName() + " received a message: " + receivedMsg);
-                    marketHandler.processPerformative(this.getAgent(),receivedMsg,role);
-                }
-                else
-                    block();
-                /**
-                 * Aircraft aircraftToLease is the Resource received from another Company
-                 * Necessary to calculate the utility to evaluate if the Resource is worth or not
-                 */
-            }
-            /**
-             * TODO else needed here?
-             */
-        }
-        /**
-         * After receiving messages from all Sellers, there are tasks to be done
-         */
-        //doDelete();
-        //onEnd();
+        return resourcesToBeLeased;
     }
 }
 

@@ -1,7 +1,9 @@
-import jade.core.Runtime;
 import jade.core.Profile;
 import jade.core.ProfileImpl;
-import jade.wrapper.*;
+import jade.core.Runtime;
+import jade.wrapper.AgentContainer;
+import jade.wrapper.AgentController;
+import jade.wrapper.StaleProxyException;
 /**
  * Created by Luis on 22/02/2017.
  */
@@ -36,15 +38,17 @@ public class Market {
                 "agents.SellerAgent", new Object[0]);
         AgentController seller2 = mainContainer.createNewAgent("Seller2",
                 "agents.SellerAgent", new Object[0]);
-        /*AgentController seller3 = mainContainer.createNewAgent("Seller3",
+        AgentController seller3 = mainContainer.createNewAgent("Seller3",
                 "agents.SellerAgent", new Object[0]);
         AgentController seller4 = mainContainer.createNewAgent("Seller4",
                 "agents.SellerAgent", new Object[0]);
         AgentController seller5 = mainContainer.createNewAgent("Seller5",
-                "agents.SellerAgent", new Object[0]);*/
+                "agents.SellerAgent", new Object[0]);
 
+        Object[] arguments = new Object[1];
+        arguments[0] = 33728.12;
         AgentController buyer = mainContainer.createNewAgent("Buyer",
-                "agents.BuyerAgent", new Object[0]);
+                "agents.BuyerAgent", arguments);
         //AgentController buyer2 = mainContainer.createNewAgent("Buyer2",
           //      "agents.BuyerAgent", new Object[0]);
 
