@@ -60,16 +60,16 @@ public class Aircraft extends Resource implements Serializable{
 
     }
 
-    public boolean compareAircraft(Aircraft a1){
-        return(a1.getType().equals(this.getType()) &&
-                a1.getCapacity().equals(this.getCapacity()));
+    public boolean compareAircraft(Aircraft a){
+        return(a.getType().equals(this.getType()) &&
+                a.getCapacity().equals(this.getCapacity()));
     }
 
     @Override
-    public boolean compareResource(Resource r1) {
-        if(r1.getClass().equals(this.getClass())){
+    public boolean compareResource(Resource r) {
+        if(r.getClass().equals(this.getClass())){
 
-            return compareAircraft((Aircraft) r1);
+            return compareAircraft((Aircraft) r);
         }
         return false;
     }

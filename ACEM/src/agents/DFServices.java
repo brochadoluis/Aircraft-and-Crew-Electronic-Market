@@ -77,7 +77,8 @@ public class DFServices {
             DFAgentDescription[] result = DFService.search(a, dfd, ALL);
             AID[] agents = new AID[result.length];
             for (int i=0; i<result.length; i++)
-                agents[i] = result[i].getName() ;
+                agents[i] = result[i].getName();
+
             return agents;
 
         }

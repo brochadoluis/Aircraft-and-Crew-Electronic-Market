@@ -63,8 +63,7 @@ public abstract class Resource implements Serializable{
                 ", */ "Estimated cost =  " + this.price);
     }
 
-    public abstract boolean compareResource(Resource r1);
-
+    public abstract boolean compareResource(Resource r);
 
     public abstract String getType();
 

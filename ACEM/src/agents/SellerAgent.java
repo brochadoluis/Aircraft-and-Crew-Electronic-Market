@@ -3,8 +3,10 @@ package agents;
 import jade.core.AID;
 import jade.core.Agent;
 import jade.core.behaviours.CyclicBehaviour;
+import jade.domain.DFService;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.domain.FIPAAgentManagement.ServiceDescription;
+import jade.domain.FIPAException;
 import jade.lang.acl.ACLMessage;
 
 /**
@@ -37,10 +39,12 @@ public class SellerAgent extends Agent {
          * and create a propose msg with the best fit
          * sendPropossMsg
          */
+
     }
 
     /**
      * After receiving a ACCEPT_PROPOSAL and finishs the contract, needs to deregister, update resources and register again
+     * instead of doing doDelete()
      */
     private class ListeningBehaviour extends CyclicBehaviour{
 
@@ -50,15 +54,25 @@ public class SellerAgent extends Agent {
             ACLMessage receivedMsg = this.getAgent().receive();
             System.out.println(this.getAgent().getLocalName() + " received a message: " + receivedMsg);
             if (receivedMsg != null) {
-                System.out.println("A Chamar o market");
                 receiver = new AID[]{receivedMsg.getSender()};
                 marketHandler.setReceivers(receiver);
                 marketHandler.processPerformative(this.getAgent(),receivedMsg,role);
             }
-            block();
+            else
+                block();
             /**
              * TODO else needed here?
              */
+        }
+    }
+    protected void takeDown() {
+        System.out.println("Deregister " + this.getLocalName() +" from DFS. Bye...");
+        // Deregister from the yellow pages
+        try {
+            DFService.deregister(this);
+        }
+        catch (FIPAException fe) {
+            fe.printStackTrace();
         }
     }
 }

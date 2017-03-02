@@ -18,7 +18,7 @@ public class MessageHandler {
      * getMsgResources method converts the ACL message content
      * to Resource type
      * @param msg: ACL message to be procesed
-     * @return Resources contained in msg
+     * @return A list of resources contained in msg
      */
     protected ArrayList<Resource> getMsgResources(Agent agent, ACLMessage msg) {
 
@@ -69,6 +69,7 @@ public class MessageHandler {
             for (AID receiver:receivers) {
                 propose.addReceiver(receiver);
             }
+            System.out.println("Preparing Proposal in "+ sender.getLocalName() );
             propose.setContentObject(resourcesToBeLeased);
             serializeAndSend(sender,propose);
         } catch (IOException e){
@@ -93,7 +94,6 @@ public class MessageHandler {
             }
             accept.setContentObject(resourcesToBeLeased);
             serializeAndSend(sender,accept);
-            System.out.println("Vou matar este gajo");
         } catch (IOException e){
             e.printStackTrace();
         }
@@ -108,8 +108,13 @@ public class MessageHandler {
      */
     protected void serializeAndSend(Agent sender,ACLMessage msg) {
         msg.setLanguage("JavaSerialization");
+        System.out.println("Performative to send : "+ msg.getPerformative() + " in " + sender.getLocalName());
         sender.send(msg);
-        System.out.println("MEssage sent from " + sender.getLocalName());
+        System.out.println("Message sent from " + sender.getLocalName());
+        if(msg.getPerformative() == ACLMessage.ACCEPT_PROPOSAL){
+            System.out.println("msg.getPerformative() == ACLMessage.ACCEPT_PROPOSAL " +( msg.getPerformative() == ACLMessage.ACCEPT_PROPOSAL));
+            sender.doDelete();
+        }
 
         // System.out.println(agent.getLocalName()+" sent 1st msg "+msg);
 

@@ -17,7 +17,6 @@ public class MarketHandler {
     private ArrayList<Resource> resourcesNeeded;
     private ArrayList<Resource> availableResources = new ArrayList<>();
     private ArrayList<Resource> possibleMatches;
-    private int i = 0;
     /**
      * processPerformative method gets a message's performative and according to the message's performative,
      * the respective processing method is called
@@ -57,11 +56,12 @@ public class MarketHandler {
                     System.out.println(agent.getLocalName() + " REJECT PROPOSAL RECEIVED ");
                     processReject(msg);
                     break;
-                    default:
-                        break;
+                default:
+                    System.out.println("Unknown Performative");
+                    break;
             }
         } else{
-            System.out.println("Unknown Performative");
+            System.out.println("Unknown Language");
         }
     }
 
@@ -74,19 +74,17 @@ public class MarketHandler {
      */
     private ACLMessage processCFP(Agent agent, ACLMessage msg) {
         msgHandler = new MessageHandler();
-
         ArrayList<Resource> askedResources = msgHandler.getMsgResources(agent,msg);
-        System.out.println("PROCESS CFP \n\n\nResources asked:\n");
-        for (Resource asked:askedResources) {
-            asked.printResource();
-        }
         //Fetch funtion, writes to an ArrayList the resources available
         getAvailableResources(agent);
         //Compare the resources asked with the ones available
         possibleMatches = compareAskedResourceWithAvailableOnes(askedResources,availableResources);
 
-        ArrayList<Resource> solutions = new ArrayList<>();
-        solutions.add(findBestSolution(possibleMatches));
+        ArrayList<Resource> solutions = findBestSolution(possibleMatches);
+        /*System.out.println("SOLUTIONS : ");
+        for (Resource sol:solutions) {
+            sol.printResource();
+        }*/
         /**
          * Fetch Resources in DataBase
          * Compare Resource form message with DataBase Fetch results
@@ -102,7 +100,7 @@ public class MarketHandler {
         return msg;
     }
 
-    private Resource findBestSolution(ArrayList<Resource> possibleMatches) {
+    private ArrayList<Resource> findBestSolution(ArrayList<Resource> possibleMatches) {
         /**
          * Chave Resource, Valor Double, uma vez que esta a receber uma lista de
          * Rescursos, assim encontra-se o recursos pretendido e manda-se para a stack/queue/list
@@ -118,9 +116,7 @@ public class MarketHandler {
         if(possibleMatches.size() == 0)
             //Ver como proceder aqui. Seller abandona negociaçoes?
             System.out.println("Resource not available");
-        //Only one possible match
-        if(possibleMatches.size() == 1)
-            return possibleMatches.get(0);
+            //Only one possible match
         else{
             //for (Resource resource:possibleMatches){
             /**
@@ -135,7 +131,7 @@ public class MarketHandler {
              * Returns a list with the resources to be negotiated
              */
         }
-        return possibleMatches.get(0);
+        return possibleMatches;
     }
 
     //ESTA FUNCAO PROCESSA OS COMENTARIOS NA MENSAGEM, NO CASO DO SELLER, PARA MELHORAR A PROPOSTA
@@ -164,19 +160,21 @@ public class MarketHandler {
          */
         switch (role){
             case "Buyer":
+                ArrayList<Resource> resourcesFromProposal;
                 System.out.println("Sou o BUYER");
                 /**
                  * cenas descritas acima
                  */
                 //At this point, receivers list can only have one receiver
-                for (Resource resource:msgHandler.getMsgResources(agent,msg)) {
-                    for (Resource resourceNeeded : resourcesNeeded) {
-                        if (resource.compareResource(resourceNeeded)) {
-                            msgHandler.prepareAccept(agent, receivers, resourcesNeeded);
-                        }
-                        msgHandler.preparePropose(agent, receivers, resourcesNeeded);
-                    }
-                }
+                //resourcesFromProposal may be useful if not all resources match. Check if it is really needed
+                resourcesFromProposal = msgHandler.getMsgResources(agent,msg);
+                // Auxiliar ArrayList to compare if proposed resources are equal to the ones needed
+                ArrayList<Resource> resourcesProposed = msgHandler.getMsgResources(agent,msg);
+                if(proposalMeetsNeeds(agent, resourcesProposed, resourcesNeeded))
+                    msgHandler.prepareAccept(agent, receivers, resourcesNeeded);
+                else
+                    msgHandler.preparePropose(agent, receivers, resourcesNeeded);
+
                 float totalPrice = 0;
                 for (Resource r:msgHandler.getMsgResources(agent,msg)) {
                     totalPrice+= r.getPrice();
@@ -184,21 +182,10 @@ public class MarketHandler {
                 System.out.println("Proposal total cost = " +totalPrice );
                 break;
             case "Seller":
-                System.out.println("Sou o SELLER\n");
-                System.out.println("Recebi o seguinte recurso: \n");
-                //msgHandler.getMsgResources(agent,msg).printResource();
-                if(i == 3){
-                    ArrayList<Resource> finalResourcesList = new ArrayList<>();
-                    Resource finalResource = new Aircraft(1432.53f,"Boeing 777", 396);
-                    finalResourcesList.add(finalResource);
-                    msgHandler.preparePropose(agent,receivers,finalResourcesList);
-                }
-                else
-                    msgHandler.preparePropose(agent,receivers,msgHandler.getMsgResources(agent,msg));
-                i++;
+                msgHandler.preparePropose(agent,receivers,msgHandler.getMsgResources(agent,msg));
                 break;
-                default:
-                    break;
+            default:
+                break;
         }
         return msg;
     }
@@ -214,6 +201,10 @@ public class MarketHandler {
          * Contratualize and Buyer dies
          */
         System.out.println("ACCEPT RECEIVED");
+        System.out.println("I am " + agent.getLocalName());
+        /**
+         * Deregister, update database, register again
+         */
         return msg;
     }
 
@@ -246,8 +237,14 @@ public class MarketHandler {
         this.resourcesNeeded = resourcesMissing;
     }
 
+    /**
+     * getAvailableResources method searches in the Seller's database for available resources
+     * and writes them directly to a Seller's available resources list
+     * @param agent TO BE REMOVED
+     */
     private void getAvailableResources(Agent agent) {
-        Resource r1 = new Aircraft(1200.534f,"Boeing 777", 396);
+        System.out.println("Getting available resources in " + agent.getLocalName()) ;
+        Resource r1  = new Aircraft(1432.53f,"Boeing 777", 396);
         Resource r2 = new CrewMember(3840.54f,2, "Pilot", "English A2");
         Resource r3 = new Aircraft(1200.534f,"Boeing 767", 375);
         Resource r4 = new CrewMember(689.54f,8, "Flight Attendant", "English B2");
@@ -265,16 +262,53 @@ public class MarketHandler {
         availableResources.add(r8);
     }
 
+    /**
+     * compareAskedResourceWithAvailableOnes method, compares the resources asked by Buyer Agent with the resources available
+     * for one Seller
+     * @param askedResources: List of resources asked by Buyer
+     * @param availableResources: List of Seller's all available resources
+     * @return An Arraylist of resources, containing the resources that match with the ones asked
+     */
     private ArrayList<Resource> compareAskedResourceWithAvailableOnes(ArrayList<Resource> askedResources, ArrayList<Resource> availableResources) {
         possibleMatches = new ArrayList<>();
         for (Resource askedResource:askedResources) {
             for (Resource resource : availableResources) {
                 if (!resource.compareResource(askedResource))
                     continue;
-                else
+                else{
                     possibleMatches.add(resource);
+                    System.out.println(resource + "Added to possibleMatches");
+                }
             }
         }
         return possibleMatches;
+    }
+
+    /**
+     * proposalMeetsNeeds method compares the resources proposed by one Seller
+     * to check if they match the resources asked in the market
+     * @param agent
+     * @param resourcesProposed: Clone List with resources read from ACL Message
+     * @param resourcesAsked: List of resources missing
+     * @return true if all resources match, false otherwise
+     */
+    private boolean proposalMeetsNeeds(Agent agent, ArrayList<Resource> resourcesProposed, ArrayList<Resource> resourcesAsked) {
+        System.out.println("Resources Received: \n\n");
+        System.out.println("RFP size = "+ resourcesProposed.size() );
+        System.out.println("RA size = "+ resourcesAsked.size() );
+        for(int i = 0; i < resourcesAsked.size(); i++){
+            for(int j = 0; j < resourcesProposed.size(); j++){
+                if(resourcesAsked.get(i).compareResource(resourcesProposed.get(j))){
+                    resourcesProposed.remove(j);
+                }
+                else
+                    continue;
+            }
+        }
+        if(resourcesProposed.isEmpty())
+            return true;
+
+        else
+            return false;
     }
 }

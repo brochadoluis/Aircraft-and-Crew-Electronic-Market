@@ -63,17 +63,17 @@ public class CrewMember extends Resource implements Serializable{
         System.out.println();
     }
 
-    public boolean compareCrewMembers(CrewMember cm1){
-        return(cm1.getNumber().equals(this.getNumber()) &&
-                cm1.getCategory().equals(this.getCategory()) &&
-                cm1.getQualifications().equals(this.getQualifications()));
+    public boolean compareCrewMembers(CrewMember cm){
+        return(cm.getNumber().equals(this.getNumber()) &&
+                cm.getCategory().equals(this.getCategory()) &&
+                cm.getQualifications().equals(this.getQualifications()));
     }
 
     @Override
-    public boolean compareResource(Resource r1) {
-        if(r1.getClass().equals(this.getClass())){
+    public boolean compareResource(Resource r) {
+        if(r.getClass().equals(this.getClass())){
 
-            return compareCrewMembers((CrewMember) r1);
+            return compareCrewMembers((CrewMember) r);
         }
         return false;
     }
