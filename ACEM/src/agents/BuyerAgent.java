@@ -2,10 +2,7 @@ package agents;
 
 import jade.core.AID;
 import jade.core.Agent;
-import jade.core.behaviours.CyclicBehaviour;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
-import jade.domain.FIPAAgentManagement.NotUnderstoodException;
-import jade.domain.FIPAAgentManagement.RefuseException;
 import jade.domain.FIPAAgentManagement.ServiceDescription;
 import jade.domain.FIPANames;
 import jade.lang.acl.ACLMessage;
@@ -17,6 +14,7 @@ import utils.Resource;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.lang.reflect.Array;
 import java.util.*;
 
 
@@ -27,11 +25,9 @@ public class BuyerAgent extends Agent implements Serializable{
     /**
      * Resources to search in the EM: @missingResources
      * Company's Identifier: @company
-     *
-     *
-     * Sends first CFP
-     * Calls behaviour with msg handlers
      */
+    private Queue bestPorposalQ = new LinkedList();
+    private Stack<ACLMessage> bestPorposalS = new Stack<>();
     private ArrayList<Resource> resourcesMissing = new ArrayList<>();
     private float resourcesCost;
     private double maximumDisruptionCost;
@@ -40,6 +36,7 @@ public class BuyerAgent extends Agent implements Serializable{
     private String company = "";
     private ArrayList<AID> sellers = new ArrayList<>();
     private int negotiationParticipants;
+    private Integer round = 0;
     /**
      * TODO melhor estrutura para guardar do historico
      */
@@ -67,6 +64,7 @@ public class BuyerAgent extends Agent implements Serializable{
             negotiationParticipants = sellers.size();
             DFAgentDescription dfd = new DFAgentDescription();
             // Fill the CFP message
+            System.out.println("ROUND NUMBER CFP SEND: " + round);
             ACLMessage msg = new ACLMessage(ACLMessage.CFP);
             for (AID seller:sellers) {
                 msg.addReceiver(seller);
@@ -76,6 +74,7 @@ public class BuyerAgent extends Agent implements Serializable{
             msg.setReplyByDate(new Date(System.currentTimeMillis() + 10000));
             try {
                 msg.setContentObject(resourcesMissing);
+                round++;
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -83,6 +82,7 @@ public class BuyerAgent extends Agent implements Serializable{
                 protected void handlePropose(ACLMessage propose, Vector v) {
                     try {
                         System.out.println("Agent "+propose.getSender().getName()+" proposed "+propose.getContentObject());
+                        System.out.println("ROUND NUMBER HANDLE PROPOSE: " + round);
                     } catch (UnreadableException e) {
                         e.printStackTrace();
                     }
@@ -90,6 +90,7 @@ public class BuyerAgent extends Agent implements Serializable{
 
                 protected void handleRefuse(ACLMessage refuse) {
                     System.out.println("Agent "+refuse.getSender().getName()+" refused");
+                    System.out.println("ROUND NUMBER HANDLE REFUSE: " + round);
                 }
 
                 protected void handleFailure(Agent agent, ACLMessage failure) {
@@ -125,6 +126,14 @@ public class BuyerAgent extends Agent implements Serializable{
                             ArrayList<Resource >resourcesFromProposal = getMsgResources(msg);
                             // Auxiliar ArrayList to compare if proposed resources are equal to the ones needed
                             ArrayList<Resource> resourcesProposed = getMsgResources(msg);
+                            /**
+                             * Isto muda porque o seller so propoe se de facto tiver o que e pedido
+                             * Passa a fazer o calculo da utilidades das propostas todas
+                             * E insere a melhor na stack/queue.
+                             * Prepara para todos os sellers os comentarios as propostas feitas
+                             * Envia reject para todos com os comentarios e lanca novo CFP
+                             * sendo que o detentor da bestProposal recebe um <OK,OK>
+                             */
                             if(proposalMeetsNeeds(msg.getSender(), resourcesProposed, resourcesMissing)){
                                 //if (proposal > bestProposal) {
                                 //  bestProposal = proposal;
@@ -138,11 +147,14 @@ public class BuyerAgent extends Agent implements Serializable{
                     if (accept != null) {
                         System.out.println("Accepting proposal "+bestProposal+" from responder "+bestProposer.getName());
                         accept.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
+                        round++;
+                        System.out.println("ROUND NUMBER AFTER SEND ACCEPT: " + round);
                     }
                 }
 
                 protected void handleInform(ACLMessage inform) {
                     System.out.println("Agent "+inform.getSender().getName()+" successfully performed the requested action");
+                    System.out.println("ROUND NUMBER HANDLE INFORM: " + round);
                     doDelete();
                 }
                 //doDelete();
@@ -151,10 +163,18 @@ public class BuyerAgent extends Agent implements Serializable{
         }
     }
 
+    /**
+     * proposalMeetsNeeds method compares the resources proposed by one Seller
+     * to check if they match the resources asked in the market
+     * @param receiver: TO BE REMOVED
+     * @param resourcesProposed: Clone List with resources read from ACL Message
+     * @param resourcesAsked: List of resources missing
+     * @return true if all resources match, false otherwise
+     */
     private boolean proposalMeetsNeeds(AID receiver, ArrayList<Resource> resourcesProposed, ArrayList<Resource> resourcesAsked) {
-        System.out.println("Resources Received: \n\n");
+        /*System.out.println("Resources Received: \n\n");
         System.out.println("RFP size = "+ resourcesProposed.size() );
-        System.out.println("RA size = "+ resourcesAsked.size() );
+        System.out.println("RA size = "+ resourcesAsked.size() );*/
         for(int i = 0; i < resourcesAsked.size(); i++){
             for(int j = 0; j < resourcesProposed.size(); j++){
                 if(resourcesAsked.get(i).compareResource(resourcesProposed.get(j))){
@@ -164,23 +184,12 @@ public class BuyerAgent extends Agent implements Serializable{
                     continue;
             }
         }
-        if(resourcesProposed.isEmpty())
-            return true;
-
-        else
-            return false;
+        return resourcesProposed.isEmpty();
     }
 
     private void findReceivers(DFServices dfs) {
         AID agent = dfs.getService(this);
-        System.out.println("\nagents: "
-                +(agent==null ? "not Found" : agent.getName()));
-        System.out.println("A procurar sellers");
-        agent = dfs.getService(this);
-        System.out.println("\nSeller: "
-                +(agent==null ? "not Found" : agent.getName()));
         /* Saves to an ArrayList all other agents registered in DFService  */
-        System.out.println("Uma lista bonita de sellers");
         sellers = dfs.searchDF(this);
         System.out.println("\nSELLERS: ");
         for (AID seller:sellers) {
@@ -205,6 +214,13 @@ public class BuyerAgent extends Agent implements Serializable{
          * Connect to DB and read values
          */
     }
+
+    /**
+     * getMsgResources method converts the ACL message content
+     * to Resource type
+     * @param msg : ACL message to be procesed
+     * @return A list of resources contained in msg
+     */
     protected ArrayList<Resource> getMsgResources(ACLMessage msg) {
 
         ArrayList<Resource> resourcesToBeLeased = null;
