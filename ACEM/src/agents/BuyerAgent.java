@@ -14,7 +14,6 @@ import utils.Resource;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.lang.reflect.Array;
 import java.util.*;
 
 
@@ -22,12 +21,7 @@ import java.util.*;
  * Created by Luis on 20/02/2017.
  */
 public class BuyerAgent extends Agent implements Serializable{
-    /**
-     * Resources to search in the EM: @missingResources
-     * Company's Identifier: @company
-     */
-    private Queue bestPorposalQ = new LinkedList();
-    private Stack<ACLMessage> bestPorposalS = new Stack<>();
+    private PriorityQueue<ArrayList<Proposal>> bestPropostalQ = null;
     private ArrayList<Resource> resourcesMissing = new ArrayList<>();
     private float resourcesCost;
     private double maximumDisruptionCost;
@@ -37,11 +31,8 @@ public class BuyerAgent extends Agent implements Serializable{
     private ArrayList<AID> sellers = new ArrayList<>();
     private int negotiationParticipants;
     private Integer round = 0;
-    /**
-     * TODO melhor estrutura para guardar do historico
-     */
-    private List<ACLMessage> receivedMsgs = new ArrayList<>();
     private Resource a1,cm1;
+    private Proposal proposal;
     protected void setup() {
         // initiateParameters();
         // Read the maximum cost as argument
@@ -123,7 +114,13 @@ public class BuyerAgent extends Agent implements Serializable{
                             ACLMessage reply = msg.createReply();
                             reply.setPerformative(ACLMessage.REJECT_PROPOSAL);
                             acceptances.addElement(reply);
+                            //Replace resource list with <Price,Availability>
                             ArrayList<Resource >resourcesFromProposal = getMsgResources(msg);
+                            try {
+                                proposal = (Proposal) msg.getContentObject();
+                            } catch (UnreadableException e1) {
+                                e1.printStackTrace();
+                            }
                             // Auxiliar ArrayList to compare if proposed resources are equal to the ones needed
                             ArrayList<Resource> resourcesProposed = getMsgResources(msg);
                             /**
@@ -134,12 +131,15 @@ public class BuyerAgent extends Agent implements Serializable{
                              * Envia reject para todos com os comentarios e lanca novo CFP
                              * sendo que o detentor da bestProposal recebe um <OK,OK>
                              */
+                            System.out.println("proposalMeetsNeeds(msg.getSender(), resourcesProposed, resourcesMissing) "
+                                    + proposalMeetsNeeds(msg.getSender(), resourcesProposed, resourcesMissing));
                             if(proposalMeetsNeeds(msg.getSender(), resourcesProposed, resourcesMissing)){
                                 //if (proposal > bestProposal) {
                                 //  bestProposal = proposal;
                                 bestProposer = msg.getSender();
                                 accept = reply;
                                 bestProposal = new ArrayList<>(resourcesFromProposal);
+                                //bestPropostalQ.add();
                             }
                         }
                     }
@@ -172,19 +172,27 @@ public class BuyerAgent extends Agent implements Serializable{
      * @return true if all resources match, false otherwise
      */
     private boolean proposalMeetsNeeds(AID receiver, ArrayList<Resource> resourcesProposed, ArrayList<Resource> resourcesAsked) {
-        /*System.out.println("Resources Received: \n\n");
-        System.out.println("RFP size = "+ resourcesProposed.size() );
-        System.out.println("RA size = "+ resourcesAsked.size() );*/
+        System.out.println("resources asked size " + resourcesAsked.size());
+        System.out.println("resources proposed size " + resourcesProposed.size());
         for(int i = 0; i < resourcesAsked.size(); i++){
             for(int j = 0; j < resourcesProposed.size(); j++){
+                System.out.println("resourcesAsked.get(i).compareResource(resourcesProposed.get(j))" +resourcesAsked.get(i).compareResource(resourcesProposed.get(j)));
                 if(resourcesAsked.get(i).compareResource(resourcesProposed.get(j))){
+                    System.out.println("Resources asked: " + resourcesAsked);
+                    System.out.println("Resources proposed: " + resourcesProposed);
+                    resourcesAsked.remove(i);
                     resourcesProposed.remove(j);
                 }
-                else
+                else {
+                    System.out.println("Resources dont match");
                     continue;
+                }
             }
         }
-        return resourcesProposed.isEmpty();
+        System.out.println(" resourcesProposed.isEmpty() " + resourcesProposed.isEmpty());
+        System.out.println(" resourcesAsked.isEmpty() " + resourcesAsked.isEmpty());
+        return resourcesProposed.isEmpty() && resourcesAsked.isEmpty();
+//        return matchCounter == resourcesAsked.size();
     }
 
     private void findReceivers(DFServices dfs) {
@@ -232,10 +240,3 @@ public class BuyerAgent extends Agent implements Serializable{
         return resourcesToBeLeased;
     }
 }
-
-
-
-
-
-
-

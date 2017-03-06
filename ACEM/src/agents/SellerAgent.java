@@ -13,7 +13,10 @@ import utils.Resource;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.PriorityQueue;
 
 /**
  * Created by Luis on 21/02/2017.
@@ -25,13 +28,13 @@ public class SellerAgent extends Agent implements Serializable{
     private final String role = "Seller";
     private String company = "";
     private DFServices dfs = new DFServices();
-    //Each queue position must be a Proposal, this means, ArrayList<ArrayList <Resource>>
-    private Queue possibleMatchesQ = new LinkedList();
-    private PriorityQueue<ArrayList<ArrayList <Resource>>> resourcesQueue = null;
+    private PriorityQueue<ArrayList<Resource>> resourcesQueue = null;
     private Integer round = 0;
     //Round - Proposal - Resources??
     //Lista de litas com Ronda-Recurso-Proposta?
+    //HashMap<Ronda,Proposta>
     private HashMap<Integer,Proposal> negotiationHistoric = new HashMap<>();
+    private Proposal proposal;
 
     protected void setup() {
         // Build the description used as template for the subscription
@@ -50,7 +53,7 @@ public class SellerAgent extends Agent implements Serializable{
         addBehaviour(new ContractNetResponder(this, template) {
             @Override
             protected ACLMessage handleCfp(ACLMessage cfp) throws NotUnderstoodException, RefuseException {
-                ArrayList<ArrayList<Resource>> queueHead;
+                ArrayList<Resource> queueHead;
                 ArrayList<ArrayList<Resource>> solutions = new ArrayList<>();
                 /**
                  * Fetch Resources in DataBase
@@ -75,16 +78,17 @@ public class SellerAgent extends Agent implements Serializable{
                 if(resourcesQueue == null) {
                     ArrayList<Resource> askedResources = getMsgResources(cfp);
                     //Fetch funtion, writes to an ArrayList the resources available
-//                    queueHead = getAvailableMatchingResources(askedResources);
                     solutions = getAvailableMatchingResources(askedResources);
                 }
-                //putResourcesIntoQueue(queueHead);
                 queueHead =  putResourcesIntoQueue(solutions);
+                System.out.println("QUEUE HEAD = " + queueHead);
+                proposal = new Proposal(2000f, queueHead);
+                /*
                 while(!resourcesQueue.isEmpty()) {
-                    ArrayList <ArrayList<Resource>>  head = resourcesQueue.poll();
+                    ArrayList<Resource> head = resourcesQueue.poll();
                     System.out.println("Queue Item = " + head);
                     System.out.println("Next Head is: " + resourcesQueue.peek());
-                }
+                }*/
                 System.out.println("resourecesQyueue.isEmpty = " + resourcesQueue.isEmpty());
                 if (!resourcesQueue.isEmpty()) {
                     System.out.println("Agent " + getLocalName() + ": Searching for resources to lease ");
@@ -92,6 +96,7 @@ public class SellerAgent extends Agent implements Serializable{
                     ACLMessage propose = cfp.createReply();
                     propose.setPerformative(ACLMessage.PROPOSE);
                     try {
+                        //Add proposal to historic
                         propose.setContentObject(queueHead);
                     } catch (IOException e) {
                         e.printStackTrace();
@@ -127,6 +132,10 @@ public class SellerAgent extends Agent implements Serializable{
                 round++;
                 System.out.println("ROUND NUMBER HANDLE REJECT: " + round);
                 /**
+                 * Loads round-1 key form historic, updates proposal to the same parameters and
+                 * adds the comments received in the reject
+                 */
+                /**
                  * Tenta negociar o primeiro recurso na stack/queue, se a utilidade descer demasiado (exemplo, ficar ao mesmo nivel da utilidade da proxima
                  * posiçao da stack/queue) muda o recurso a ser negociado, isto e, o recurso no topo da stack/queue.
                  */
@@ -151,6 +160,8 @@ public class SellerAgent extends Agent implements Serializable{
         Resource r6 = new CrewMember(689.54f,1, "Flight Medic", "English A2");
         Resource r7 = new Aircraft(1200.534f,"Airbus A330-200 Freighter", 407);
         Resource r8 = new CrewMember(689.54f,4, "Load Master", "English C2");
+        Resource r9  = new Aircraft(1432.53f,"Boeing 777", 396);
+        Resource r10 = new CrewMember(3840.54f,2, "Pilot", "English A2");
         availableResources.add(r1);
         availableResources.add(r2);
         availableResources.add(r3);
@@ -159,23 +170,30 @@ public class SellerAgent extends Agent implements Serializable{
         availableResources.add(r6);
         availableResources.add(r7);
         availableResources.add(r8);
+        availableResources.add(r9);
+        availableResources.add(r10);
+        System.out.println("Available resources: " + availableResources);
+
+
 
         //Depending on the query to the DB, compare may not be needed
         return compareAskedResourceWithAvailableOnes(askedResources, availableResources);
     }
 
     //Return peek or element from queue
-    private ArrayList<ArrayList<Resource>> putResourcesIntoQueue(ArrayList<ArrayList<Resource>> solutions) {
+    private ArrayList<Resource> putResourcesIntoQueue(ArrayList<ArrayList<Resource>> solutions) {
         if(solutions.size() == 0) {
             System.out.println("Resources not available");
             //exits negotiation
         }
         else{
             int queueSize = solutions.size();
-            Comparator<ArrayList<ArrayList<Resource>>>  comparator = new UtilityComparator();
+            Comparator<ArrayList<Resource>>  comparator = new UtilityComparator();
             resourcesQueue = new PriorityQueue<>(queueSize, comparator );
-            //for(int i = 0; i < solutions.size(); i++)
-                resourcesQueue.add(solutions);
+            for(int i = 0; i < solutions.size(); i++) {
+                System.out.println("Solutions.get(" + i + ") = " +solutions.get(i));
+                resourcesQueue.add(solutions.get(i));
+            }
             //for (Resource resource:possibleMatches){
             /**
              * Calculates utility
@@ -197,9 +215,6 @@ public class SellerAgent extends Agent implements Serializable{
          * top is now the resource under negotiation
          */
         return resourcesQueue.peek();
-        //return possibleMatches;
-        //possibleMatchesQ.add(resource);
-        //possibleMatchesS.push(resource);
     }
 
     /**
@@ -211,22 +226,38 @@ public class SellerAgent extends Agent implements Serializable{
      */
     private ArrayList< ArrayList<Resource> > compareAskedResourceWithAvailableOnes(ArrayList<Resource> askedResources, ArrayList<Resource> availableResources) {
         ArrayList< ArrayList<Resource> > solutions = new ArrayList<>();
-        for (Resource askedResource:askedResources) {//para cada 1 destes, adiciona 1 lista ao solutions
-            ArrayList<Resource> aux = new ArrayList<>();
-            for (Resource resource : availableResources) {
-                if (!resource.compareResource(askedResource))
-                    continue;
-                else{
-                    //push
-                    aux.add(resource);
-                    System.out.println(resource + "Added to possibleMatches");
+        ArrayList<Resource> aux = new ArrayList<>();
+        aux.ensureCapacity(askedResources.size());
+        for(int i = 0,j = 0; i < askedResources.size() && j < availableResources.size();i++, j++){
+            while(!availableResources.isEmpty()){
+                if(askedResources.get(i).compareResource(availableResources.get(j))){
+                    aux.add(availableResources.get(j));
+                    availableResources.remove(j);
+                    j = 0;
+                    if(i == askedResources.size()-1){
+                        i = 0;
+                    }
+                    else{
+                        i++;
+                    }
+                }
+                else {
+                    availableResources.remove(j);
+                }
+                //To ensure that aux always pushes to solutions
+                if(aux.size() == askedResources.size()) {
+                    System.out.println("AUX " + aux);
+                    solutions.add(aux);
+                    aux = new ArrayList<>();
+                    aux.ensureCapacity(askedResources.size());
                 }
             }
-            solutions.add(aux);
         }
         for (ArrayList<Resource> sol:solutions) {
             System.out.println("Solutions:  " + sol);
         }
+        for(int i = 0; i < solutions.size(); i++)
+            System.out.println("Solutuions num for " + solutions.get(i));
         System.out.println("Solutions Complete: " + solutions);
         //findPossibleMatches(solutions);
         return solutions;
