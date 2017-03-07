@@ -82,7 +82,7 @@ public class SellerAgent extends Agent implements Serializable{
                 }
                 queueHead =  putResourcesIntoQueue(solutions);
                 System.out.println("QUEUE HEAD = " + queueHead);
-                proposal = new Proposal(2000f, queueHead);
+                proposal = new Proposal(40000f, queueHead);
                 /*
                 while(!resourcesQueue.isEmpty()) {
                     ArrayList<Resource> head = resourcesQueue.poll();
@@ -97,7 +97,7 @@ public class SellerAgent extends Agent implements Serializable{
                     propose.setPerformative(ACLMessage.PROPOSE);
                     try {
                         //Add proposal to historic
-                        propose.setContentObject(queueHead);
+                        propose.setContentObject(proposal);
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
@@ -129,8 +129,17 @@ public class SellerAgent extends Agent implements Serializable{
 
             protected void handleRejectProposal(ACLMessage cfp, ACLMessage propose, ACLMessage reject) {
                 System.out.println("Agent "+getLocalName()+": Proposal rejected");
+                try {
+                    System.out.println("Message received is: " + reject.getContentObject());
+                    proposal.setPriceComment(reject.getContentObject().toString());
+                } catch (UnreadableException e) {
+                    e.printStackTrace();
+                }
                 round++;
                 System.out.println("ROUND NUMBER HANDLE REJECT: " + round);
+                negotiationHistoric.put(round,proposal);
+                System.out.println("Historic updated. Is has now " );
+                negotiationHistoric.get(round).printProposal();
                 /**
                  * Loads round-1 key form historic, updates proposal to the same parameters and
                  * adds the comments received in the reject

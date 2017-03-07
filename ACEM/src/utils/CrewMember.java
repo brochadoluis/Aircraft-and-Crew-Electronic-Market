@@ -60,7 +60,6 @@ public class CrewMember extends Resource implements Serializable{
         System.out.print("Crew Member Number = " + this.number +", Crew Member Category =  "
                 + this.category +" and Crew Member qualifications =  " + this.qualifications + " with ");
         super.print();
-        System.out.println();
     }
 
     public boolean compareCrewMembers(CrewMember cm){

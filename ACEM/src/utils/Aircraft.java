@@ -56,8 +56,6 @@ public class Aircraft extends Resource implements Serializable{
     public void printResource() {
         System.out.print("Aircraft Type = " + this.type +" and Aircraft Capacity =  " + this.capacity + " with ");
         super.print();
-        System.out.println();
-
     }
 
     public boolean compareAircraft(Aircraft a){

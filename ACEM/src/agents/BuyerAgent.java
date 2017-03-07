@@ -21,7 +21,7 @@ import java.util.*;
  * Created by Luis on 20/02/2017.
  */
 public class BuyerAgent extends Agent implements Serializable{
-    private PriorityQueue<ArrayList<Proposal>> bestPropostalQ = null;
+    private PriorityQueue<Proposal> bestProposalQ = new PriorityQueue<>();
     private ArrayList<Resource> resourcesMissing = new ArrayList<>();
     private float resourcesCost;
     private double maximumDisruptionCost;
@@ -104,7 +104,7 @@ public class BuyerAgent extends Agent implements Serializable{
                     }
                     // Evaluate proposals.
                     //int bestProposal = -1;
-                    ArrayList<Resource> bestProposal = new ArrayList<>();
+                    //ArrayList<Resource> bestProposal = new ArrayList<>();
                     AID bestProposer = null;
                     ACLMessage accept = null;
                     Enumeration e = responses.elements();
@@ -115,14 +115,15 @@ public class BuyerAgent extends Agent implements Serializable{
                             reply.setPerformative(ACLMessage.REJECT_PROPOSAL);
                             acceptances.addElement(reply);
                             //Replace resource list with <Price,Availability>
-                            ArrayList<Resource >resourcesFromProposal = getMsgResources(msg);
+                            //Remove getMsgResources, or change it to getMsgContent/getProposal whatever
+                            //ArrayList<Resource >resourcesFromProposal = getMsgResources(msg);
                             try {
                                 proposal = (Proposal) msg.getContentObject();
                             } catch (UnreadableException e1) {
                                 e1.printStackTrace();
                             }
                             // Auxiliar ArrayList to compare if proposed resources are equal to the ones needed
-                            ArrayList<Resource> resourcesProposed = getMsgResources(msg);
+                            //ArrayList<Resource> resourcesProposed = getMsgResources(msg);
                             /**
                              * Isto muda porque o seller so propoe se de facto tiver o que e pedido
                              * Passa a fazer o calculo da utilidades das propostas todas
@@ -131,24 +132,53 @@ public class BuyerAgent extends Agent implements Serializable{
                              * Envia reject para todos com os comentarios e lanca novo CFP
                              * sendo que o detentor da bestProposal recebe um <OK,OK>
                              */
-                            System.out.println("proposalMeetsNeeds(msg.getSender(), resourcesProposed, resourcesMissing) "
-                                    + proposalMeetsNeeds(msg.getSender(), resourcesProposed, resourcesMissing));
-                            if(proposalMeetsNeeds(msg.getSender(), resourcesProposed, resourcesMissing)){
+                            System.out.println("evaluateProposal(msg.getSender(), resourcesProposed, resourcesMissing) ");
+                            evaluateProposal(msg.getSender(), proposal, responses);
+                            if(!bestProposalQ.isEmpty()){
                                 //if (proposal > bestProposal) {
                                 //  bestProposal = proposal;
                                 bestProposer = msg.getSender();
                                 accept = reply;
-                                bestProposal = new ArrayList<>(resourcesFromProposal);
-                                //bestPropostalQ.add();
+                                System.out.println("Best Proposal is ");
+                                bestProposalQ.peek().printProposal();
+                                //bestProposalQ.add();
+                            }
+                            else{
+                                //just to test the REJECT
+                                System.out.println("Rejecting proposal "+ proposal.toString()+" from responder "+ msg.getSender());
+                                try {
+                                    reply.setContentObject("Lower");
+                                } catch (IOException e1) {
+                                    e1.printStackTrace();
+                                }
+                                round++;
+                                //send another CFP
+                                System.out.println("A enviar mais um CFP");
+                                ACLMessage cfp = new ACLMessage(ACLMessage.CFP);
+                                for (AID seller:sellers) {
+                                    cfp.addReceiver(seller);
+                                }
+                                cfp.setProtocol(FIPANames.InteractionProtocol.FIPA_CONTRACT_NET);
+                                cfp.setReplyByDate(new Date(System.currentTimeMillis() + 10000));
+                                try {
+                                    cfp.setContentObject("");
+                                } catch (IOException e1) {
+                                    e1.printStackTrace();
+                                }
+                                round++;
                             }
                         }
                     }
                     // Accept the proposal of the best proposer
                     if (accept != null) {
-                        System.out.println("Accepting proposal "+bestProposal+" from responder "+bestProposer.getName());
+                        System.out.println("Accepting proposal "+bestProposalQ.toString()+" from responder "+bestProposer.getName());
                         accept.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
                         round++;
                         System.out.println("ROUND NUMBER AFTER SEND ACCEPT: " + round);
+                    }
+                    //Como nao existe accept, e necesario criar os comenatios, enviar REJECT com os comentarios e em seguida enviar novo CFP
+                    else{
+                        System.out.println("Don't like what I'm seeing");
                     }
                 }
 
@@ -164,17 +194,24 @@ public class BuyerAgent extends Agent implements Serializable{
     }
 
     /**
-     * proposalMeetsNeeds method compares the resources proposed by one Seller
-     * to check if they match the resources asked in the market
+     * evaluateProposal method evaluates the proposals received
+     * according to Buyer's utility. Selects the best and adds it to
+     * the Best Proposal Queue
      * @param receiver: TO BE REMOVED
-     * @param resourcesProposed: Clone List with resources read from ACL Message
-     * @param resourcesAsked: List of resources missing
+     * @param proposal: Proposal read from ACL Message
+     * @param responses: Vector with all the responses received
      * @return true if all resources match, false otherwise
      */
-    private boolean proposalMeetsNeeds(AID receiver, ArrayList<Resource> resourcesProposed, ArrayList<Resource> resourcesAsked) {
-        System.out.println("resources asked size " + resourcesAsked.size());
-        System.out.println("resources proposed size " + resourcesProposed.size());
-        for(int i = 0; i < resourcesAsked.size(); i++){
+    private void evaluateProposal(AID receiver, Proposal proposal, Vector responses) {
+        System.out.println("Proposal ");
+        proposal.printProposal();
+        System.out.println("Responses " + responses);
+        double priceAsked = proposal.getPrice();
+        if(priceAsked <= maximumDisruptionCost) {
+            bestProposalQ.add(proposal);
+            System.out.println("PROPOSAL ADDED TO QUEUE");
+        }
+        /*for(int i = 0; i < resourcesAsked.size(); i++){
             for(int j = 0; j < resourcesProposed.size(); j++){
                 System.out.println("resourcesAsked.get(i).compareResource(resourcesProposed.get(j))" +resourcesAsked.get(i).compareResource(resourcesProposed.get(j)));
                 if(resourcesAsked.get(i).compareResource(resourcesProposed.get(j))){
@@ -191,7 +228,7 @@ public class BuyerAgent extends Agent implements Serializable{
         }
         System.out.println(" resourcesProposed.isEmpty() " + resourcesProposed.isEmpty());
         System.out.println(" resourcesAsked.isEmpty() " + resourcesAsked.isEmpty());
-        return resourcesProposed.isEmpty() && resourcesAsked.isEmpty();
+        *///return resourcesProposed.isEmpty() && resourcesAsked.isEmpty();
 //        return matchCounter == resourcesAsked.size();
     }
 

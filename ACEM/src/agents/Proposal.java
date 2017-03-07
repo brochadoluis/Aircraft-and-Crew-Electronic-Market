@@ -72,4 +72,11 @@ public class Proposal implements Serializable {
     public void setResourcesProposed(ArrayList<Resource> resourcesProposed) {
         this.resourcesProposed = resourcesProposed;
     }
+
+    public void printProposal(){
+        System.out.println("Price = " + this.price +"€. Comments: " + priceComment + " price ");
+        /*for (Resource r : resourcesProposed) {
+            r.printResource();
+        }*/
+    }
 }
