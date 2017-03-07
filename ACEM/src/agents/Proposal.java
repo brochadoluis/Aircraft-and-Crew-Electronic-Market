@@ -1,10 +1,12 @@
 package agents;
 
+import jade.core.AID;
 import utils.Resource;
 
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 
 /**
  * Created by Luis on 03/03/2017.
@@ -16,13 +18,17 @@ public class Proposal implements Serializable {
      * ou seja, nao importa se entrega antes de tempo, importa que o voo sera cumprido sem atraso
      * e cada incremento significa 1 minuto de atraso
      */
-    private String priceComment,availabilityComment;
+    private String priceComment;
+    private String availabilityComment;
     private ArrayList<Resource> resourcesProposed = new ArrayList<>();
     private Integer round;
 
-    public Proposal(double price, /*Date availability,*/ ArrayList<Resource> resourcesProposed) {
+    private AID sender;
+
+    public Proposal(double price, /*Date availability,*/ List<Resource> resourcesProposed, AID sender) {
         this.price = price;
-        this.resourcesProposed = resourcesProposed;
+        this.resourcesProposed = (ArrayList<Resource>) resourcesProposed;
+        this.sender = sender;
     }
 
     public double getPrice() {
@@ -65,18 +71,27 @@ public class Proposal implements Serializable {
         this.round = round;
     }
 
-    public ArrayList<Resource> getResourcesProposed() {
+    public List<Resource> getResourcesProposed() {
         return resourcesProposed;
     }
 
-    public void setResourcesProposed(ArrayList<Resource> resourcesProposed) {
-        this.resourcesProposed = resourcesProposed;
+    public void setResourcesProposed(List<Resource> resourcesProposed) {
+        this.resourcesProposed = (ArrayList<Resource>) resourcesProposed;
+    }
+
+    public AID getSender() {
+        return sender;
+    }
+
+    public void setSender(AID sender) {
+        this.sender = sender;
     }
 
     public void printProposal(){
         System.out.println("Price = " + this.price +"€. Comments: " + priceComment + " price ");
-        /*for (Resource r : resourcesProposed) {
-            r.printResource();
-        }*/
+    }
+
+    public void printComments(){
+        System.out.println("Comment on price = " + this.priceComment /*+", and comment on availability = " + this.availabilityComment*/);
     }
 }

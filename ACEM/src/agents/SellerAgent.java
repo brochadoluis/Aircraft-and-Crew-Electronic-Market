@@ -7,6 +7,7 @@ import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
 import jade.lang.acl.UnreadableException;
 import jade.proto.ContractNetResponder;
+import jade.util.Logger;
 import utils.Aircraft;
 import utils.CrewMember;
 import utils.Resource;
@@ -17,6 +18,9 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.PriorityQueue;
+import java.util.logging.FileHandler;
+import java.util.logging.Level;
+import java.util.logging.SimpleFormatter;
 
 /**
  * Created by Luis on 21/02/2017.
@@ -25,7 +29,8 @@ public class SellerAgent extends Agent implements Serializable{
     /**
      * * Company's Identifier: @company
      */
-    private final String role = "Seller";
+    private final Logger logger = jade.util.Logger.getMyLogger(this.getClass().getName());
+//    private final String role = "Seller";
     private String company = "";
     private DFServices dfs = new DFServices();
     private PriorityQueue<ArrayList<Resource>> resourcesQueue = null;
@@ -36,16 +41,18 @@ public class SellerAgent extends Agent implements Serializable{
     private HashMap<Integer,Proposal> negotiationHistoric = new HashMap<>();
     private Proposal proposal;
 
+    @Override
     protected void setup() {
         // Build the description used as template for the subscription
+        createLogger();
         DFAgentDescription dfd;
         ServiceDescription sd = new ServiceDescription();
         //sd.setType(role);
         sd.setName(getLocalName());
         // sd.addProperties(new Property("country", "Italy"));
         dfd = dfs.register(this);
-        System.out.println("Agent "+getLocalName()+" waiting for CFP...");
-        System.out.println("ROUND NUMBER BEFORE GETTING CFP: " + round);
+        logger.log(Level.INFO,"Agent {0} waiting for CFP...  ",getLocalName());
+        logger.log(Level.INFO,"Round n(before receiving CFP> {0})", round);
         MessageTemplate template = MessageTemplate.and(
                 MessageTemplate.MatchProtocol(FIPANames.InteractionProtocol.FIPA_CONTRACT_NET),
                 MessageTemplate.MatchPerformative(ACLMessage.CFP));
@@ -70,9 +77,9 @@ public class SellerAgent extends Agent implements Serializable{
                  * e so avaliar a proposta (comentarios), alterar ou nao, a proposta a fazer
                  *
                  */
-                System.out.println("Agent " + getLocalName() + ": CFP received from " + cfp.getSender().getName() + ". Action is " + cfp.getContent());
                 round++;
-                System.out.println("ROUND NUMBER AFTER RECEIVE CFP: " + round);
+                logger.log(Level.INFO,"Agent {0}: CFP received from {1}. Action is {2} ",new Object[]{getLocalName(),cfp.getSender().getLocalName(),cfp.getContent()});
+                logger.log(Level.INFO,"Round n(upon receiving CFP> {0})", round);
                 //First Round, means that seller needs to fetch for available resources in DB
                 // if queue is empty and historic too, then its the first round, if historic is not empty, there are no more resources to negotiate
                 if(resourcesQueue == null) {
@@ -81,65 +88,58 @@ public class SellerAgent extends Agent implements Serializable{
                     solutions = getAvailableMatchingResources(askedResources);
                 }
                 queueHead =  putResourcesIntoQueue(solutions);
-                System.out.println("QUEUE HEAD = " + queueHead);
-                proposal = new Proposal(40000f, queueHead);
-                /*
-                while(!resourcesQueue.isEmpty()) {
-                    ArrayList<Resource> head = resourcesQueue.poll();
-                    System.out.println("Queue Item = " + head);
-                    System.out.println("Next Head is: " + resourcesQueue.peek());
-                }*/
-                System.out.println("resourecesQyueue.isEmpty = " + resourcesQueue.isEmpty());
+                proposal = new Proposal(40000f, queueHead, this.getAgent().getAID());
                 if (!resourcesQueue.isEmpty()) {
-                    System.out.println("Agent " + getLocalName() + ": Searching for resources to lease ");
-                    System.out.println("Agent " + getLocalName() + ": Proposing ");
+                    logger.log(Level.INFO,"Agent {0}: Searching for resources to lease ",getLocalName());
+                    logger.log(Level.INFO,"Agent {0}: Proposing",getLocalName());
                     ACLMessage propose = cfp.createReply();
                     propose.setPerformative(ACLMessage.PROPOSE);
                     try {
                         //Add proposal to historic
                         propose.setContentObject(proposal);
                     } catch (IOException e) {
-                        e.printStackTrace();
+                        logger.log(Level.SEVERE,"Could not set the message's content {0}",e);
                     }
                     return propose;
                 }
                 else {
                     // We refuse to provide a proposal
-                    System.out.println("Agent " + getLocalName() + ": Refuse");
+                    logger.log(Level.INFO,"Agent {0}: Refuse",getLocalName());
                     throw new RefuseException("Can't lease the resources asked");
                 }
             }
 
             @Override
             protected ACLMessage handleAcceptProposal(ACLMessage cfp, ACLMessage propose,ACLMessage accept) throws FailureException {
-                System.out.println("Agent "+getLocalName()+": Proposal accepted");
+                logger.log(Level.INFO,"Agent {0}: Proposal Accepted",getLocalName());
                 round++;
-                System.out.println("ROUND NUMBER HANDLE ACCEPT PROPOSAL: " + round);
+                logger.log(Level.INFO,"Round n(handle accept proposal): {0}",round);
                 if (true) { // contractualization
-                    System.out.println("Agent "+getLocalName()+": Action successfully performed");
+                    logger.log(Level.INFO,"Agent {0}: Action successfully performed",getLocalName());
                     ACLMessage inform = accept.createReply();
                     inform.setPerformative(ACLMessage.INFORM);
                     return inform;
                 }
                 else {
-                    System.out.println("Agent "+getLocalName()+": Action execution failed");
+                    logger.log(Level.INFO,"Agent {0}: Action execution failed",getLocalName());
                     throw new FailureException("unexpected-error");
                 }
             }
 
+            @Override
             protected void handleRejectProposal(ACLMessage cfp, ACLMessage propose, ACLMessage reject) {
-                System.out.println("Agent "+getLocalName()+": Proposal rejected");
+                logger.log(Level.INFO,"Agent {0}: Proposal rejected",getLocalName());
                 try {
-                    System.out.println("Message received is: " + reject.getContentObject());
+                    logger.log(Level.INFO,"Message received is {0}:",reject.getContentObject());
                     proposal.setPriceComment(reject.getContentObject().toString());
                 } catch (UnreadableException e) {
-                    e.printStackTrace();
+                    logger.log(Level.INFO,"Could not et message's content {0}",e);
                 }
                 round++;
-                System.out.println("ROUND NUMBER HANDLE REJECT: " + round);
+                logger.log(Level.INFO,"Round n(handle reject): {0}",round);
                 negotiationHistoric.put(round,proposal);
-                System.out.println("Historic updated. Is has now " );
-                negotiationHistoric.get(round).printProposal();
+                logger.log(Level.INFO,"Historic updated. It has now: ");
+                negotiationHistoric.get(round).printComments();
                 /**
                  * Loads round-1 key form historic, updates proposal to the same parameters and
                  * adds the comments received in the reject
@@ -150,6 +150,22 @@ public class SellerAgent extends Agent implements Serializable{
                  */
             }
         } );
+    }
+
+    private void createLogger() {
+        logger.setLevel(Level.FINE);
+        // create an instance of Logger at the top of the file, as you would do with log4j
+        FileHandler fh = null;   // true forces append mode
+        try {
+            String logName = this.getLocalName() + " logFile.log";
+            fh = new FileHandler(logName, false);
+            SimpleFormatter sf = new SimpleFormatter();
+            fh.setFormatter(sf);
+            logger.addHandler(fh);
+
+        } catch (IOException e) {
+            logger.log(Level.SEVERE,"Could not create Log File {0} " , e);
+        }
     }
 
     /**
@@ -181,18 +197,15 @@ public class SellerAgent extends Agent implements Serializable{
         availableResources.add(r8);
         availableResources.add(r9);
         availableResources.add(r10);
-        System.out.println("Available resources: " + availableResources);
-
-
-
+        logger.log(Level.INFO,"Available Resources {0}", availableResources);
         //Depending on the query to the DB, compare may not be needed
         return compareAskedResourceWithAvailableOnes(askedResources, availableResources);
     }
 
     //Return peek or element from queue
     private ArrayList<Resource> putResourcesIntoQueue(ArrayList<ArrayList<Resource>> solutions) {
-        if(solutions.size() == 0) {
-            System.out.println("Resources not available");
+        if(solutions.isEmpty()) {
+            logger.log(Level.INFO,"Resources not available");
             //exits negotiation
         }
         else{
@@ -255,7 +268,7 @@ public class SellerAgent extends Agent implements Serializable{
                 }
                 //To ensure that aux always pushes to solutions
                 if(aux.size() == askedResources.size()) {
-                    System.out.println("AUX " + aux);
+                    logger.log(Level.INFO,"AUX:{0}",aux);
                     solutions.add(aux);
                     aux = new ArrayList<>();
                     aux.ensureCapacity(askedResources.size());
@@ -263,11 +276,8 @@ public class SellerAgent extends Agent implements Serializable{
             }
         }
         for (ArrayList<Resource> sol:solutions) {
-            System.out.println("Solutions:  " + sol);
+            logger.log(Level.INFO,"Solution: {0}",sol);
         }
-        for(int i = 0; i < solutions.size(); i++)
-            System.out.println("Solutuions num for " + solutions.get(i));
-        System.out.println("Solutions Complete: " + solutions);
         //findPossibleMatches(solutions);
         return solutions;
     }
@@ -284,7 +294,7 @@ public class SellerAgent extends Agent implements Serializable{
         try {
             resourcesToBeLeased = (ArrayList<Resource>) msg.getContentObject();
         } catch (UnreadableException e) {
-            e.printStackTrace();
+            logger.log(Level.SEVERE,"Could not get message's content",e);
         }
         return resourcesToBeLeased;
     }
