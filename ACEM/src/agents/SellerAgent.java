@@ -2,11 +2,9 @@ package agents;
 
 import jade.core.Agent;
 import jade.domain.FIPAAgentManagement.*;
-import jade.domain.FIPANames;
 import jade.lang.acl.ACLMessage;
-import jade.lang.acl.MessageTemplate;
 import jade.lang.acl.UnreadableException;
-import jade.proto.ContractNetResponder;
+import jade.proto.SSIteratedContractNetResponder;
 import jade.util.Logger;
 import utils.Aircraft;
 import utils.CrewMember;
@@ -30,16 +28,19 @@ public class SellerAgent extends Agent implements Serializable{
      * * Company's Identifier: @company
      */
     private final Logger logger = jade.util.Logger.getMyLogger(this.getClass().getName());
-//    private final String role = "Seller";
+    //    private final String role = "Seller";
     private String company = "";
     private DFServices dfs = new DFServices();
     private PriorityQueue<ArrayList<Resource>> resourcesQueue = null;
+    ArrayList<ArrayList<Resource>> solutions = new ArrayList<>();
     private Integer round = 0;
     //Round - Proposal - Resources??
     //Lista de litas com Ronda-Recurso-Proposta?
     //HashMap<Ronda,Proposta>
     private HashMap<Integer,Proposal> negotiationHistoric = new HashMap<>();
     private Proposal proposal;
+
+
 
     @Override
     protected void setup() {
@@ -53,15 +54,15 @@ public class SellerAgent extends Agent implements Serializable{
         dfd = dfs.register(this);
         logger.log(Level.INFO,"Agent {0} waiting for CFP...  ",getLocalName());
         logger.log(Level.INFO,"Round n(before receiving CFP> {0})", round);
-        MessageTemplate template = MessageTemplate.and(
-                MessageTemplate.MatchProtocol(FIPANames.InteractionProtocol.FIPA_CONTRACT_NET),
-                MessageTemplate.MatchPerformative(ACLMessage.CFP));
+        /*MessageTemplate template = MessageTemplate.and(
+                MessageTemplate.MatchProtocol(FIPANames.InteractionProtocol.FIPA_ITERATED_CONTRACT_NET),
+                MessageTemplate.MatchPerformative(ACLMessage.CFP));*/
+        ACLMessage cfp = blockingReceive();
+        addBehaviour(new SSIteratedContractNetResponder(this, cfp) {
 
-        addBehaviour(new ContractNetResponder(this, template) {
             @Override
             protected ACLMessage handleCfp(ACLMessage cfp) throws NotUnderstoodException, RefuseException {
                 ArrayList<Resource> queueHead;
-                ArrayList<ArrayList<Resource>> solutions = new ArrayList<>();
                 /**
                  * Fetch Resources in DataBase
                  * Compare Resource form message with DataBase Fetch results
@@ -69,8 +70,8 @@ public class SellerAgent extends Agent implements Serializable{
                  * Compare both Resources
                  * Calculate utility and price and creates msg with resource's price and availability
                  * To test, the resource found is defined below
-                 */
-                /**
+                 *//*
+                *//**
                  * Se for o primeiro CFP, a pilha esta vazia, e a estrutura do historico tambem. Ai faz o que
                  * esta em baixo.
                  * Se nao for o primeiro CFP, nao e preciso ir buscar os recursos A BD nem fazer match
@@ -86,8 +87,9 @@ public class SellerAgent extends Agent implements Serializable{
                     ArrayList<Resource> askedResources = getMsgResources(cfp);
                     //Fetch funtion, writes to an ArrayList the resources available
                     solutions = getAvailableMatchingResources(askedResources);
+                    putResourcesIntoQueue(solutions);
                 }
-                queueHead =  putResourcesIntoQueue(solutions);
+                queueHead =  resourcesQueue.peek();
                 proposal = new Proposal(40000f, queueHead, this.getAgent().getAID());
                 if (!resourcesQueue.isEmpty()) {
                     logger.log(Level.INFO,"Agent {0}: Searching for resources to lease ",getLocalName());
@@ -214,9 +216,9 @@ public class SellerAgent extends Agent implements Serializable{
             resourcesQueue = new PriorityQueue<>(queueSize, comparator );
             for(int i = 0; i < solutions.size(); i++) {
                 System.out.println("Solutions.get(" + i + ") = " +solutions.get(i));
+                System.out.println("Solutions Size = " + solutions.size());
                 resourcesQueue.add(solutions.get(i));
             }
-            //for (Resource resource:possibleMatches){
             /**
              * Calculates utility
              * Creates/Initializes priority queue with comparator
@@ -228,7 +230,6 @@ public class SellerAgent extends Agent implements Serializable{
              * queue.add("medium");
              *
              */
-            //}
         }
         /**
          * returns the top element with peek() or element()
@@ -247,7 +248,7 @@ public class SellerAgent extends Agent implements Serializable{
      * @return An Arraylist of resources, containing the resources that match with the ones asked
      */
     private ArrayList< ArrayList<Resource> > compareAskedResourceWithAvailableOnes(ArrayList<Resource> askedResources, ArrayList<Resource> availableResources) {
-        ArrayList< ArrayList<Resource> > solutions = new ArrayList<>();
+        //ArrayList< ArrayList<Resource> > solutions = new ArrayList<>();
         ArrayList<Resource> aux = new ArrayList<>();
         aux.ensureCapacity(askedResources.size());
         for(int i = 0,j = 0; i < askedResources.size() && j < availableResources.size();i++, j++){
@@ -278,7 +279,6 @@ public class SellerAgent extends Agent implements Serializable{
         for (ArrayList<Resource> sol:solutions) {
             logger.log(Level.INFO,"Solution: {0}",sol);
         }
-        //findPossibleMatches(solutions);
         return solutions;
     }
 

@@ -67,7 +67,7 @@ public class BuyerAgent extends Agent implements Serializable{
             for (AID seller:sellers) {
                 msg.addReceiver(seller);
             }
-            msg.setProtocol(FIPANames.InteractionProtocol.FIPA_CONTRACT_NET);
+            msg.setProtocol(FIPANames.InteractionProtocol.FIPA_ITERATED_CONTRACT_NET);
             // We want to receive a reply in 10 secs
             msg.setReplyByDate(new Date(System.currentTimeMillis() + 10000));
             try {
@@ -144,20 +144,34 @@ public class BuyerAgent extends Agent implements Serializable{
                     }
                     //accept == null => send another cfp
                     else{
+                        //Para cada resposta, fazer reply com CFP
+                        logger.log(Level.SEVERE,"Prepareing another CFP");
+                        Vector v = new Vector();
+                        for (Object response:responses) {
+                            ACLMessage resp = (ACLMessage) response;
+                            ACLMessage cfp2 = resp.createReply();
+                            cfp2.setPerformative(ACLMessage.CFP);
+                            cfp2.addReceiver(resp.getSender());
+                            cfp2.setProtocol(FIPANames.InteractionProtocol.FIPA_ITERATED_CONTRACT_NET);
+                            // We want to receive a reply in 10 secs
+                            cfp2.setReplyByDate(new Date(System.currentTimeMillis() + 10000));
+                            try {
+                                cfp2.setContentObject("");
+                                round++;
+                            } catch (IOException e1) {
+                                logger.log(Level.SEVERE,"Could not set message's content: {0} ", e1);
+                            }
+                            v.add(cfp2);
+                        }
+                        for (Object vo:v) {
+                            logger.log(Level.SEVERE,"vo = {0}", vo);
+                        }
+
+                        newIteration(v);
+                        logger.log(Level.SEVERE,"new iteration");
 //                        round++;
                         //send another CFP
                         logger.log(Level.SEVERE,"Sending another CFP");
-                        ACLMessage cfp = new ACLMessage(ACLMessage.CFP);
-                        for (AID seller:sellers) {
-                            cfp.addReceiver(seller);
-                        }
-                        cfp.setProtocol(FIPANames.InteractionProtocol.FIPA_CONTRACT_NET);
-                        cfp.setReplyByDate(new Date(System.currentTimeMillis() + 10000));
-                        try {
-                            cfp.setContentObject("");
-                        } catch (IOException e1) {
-                            logger.log(Level.SEVERE,"Could not set message's content {0}", e1);
-                        }
                         round++;
                     }
 
@@ -190,7 +204,6 @@ public class BuyerAgent extends Agent implements Serializable{
             }
         }
     }
-
 
     private void retrieveProposalContent(ACLMessage msg) {
         try {
@@ -225,7 +238,7 @@ public class BuyerAgent extends Agent implements Serializable{
      */
     private void evaluateProposal(Proposal proposal) {
         logger.log(Level.CONFIG," Proposal ");
-        proposal.printProposal();
+        //proposal.printProposal();
         double priceAsked = proposal.getPrice();
         if(priceAsked <= maximumDisruptionCost) {
             bestProposalQ.add(proposal);
