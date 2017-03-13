@@ -113,11 +113,16 @@ public class SellerAgent extends Agent implements Serializable{
                     /**
                      * Comments received in Reject, are applied to the proposal, price and availability may be updated
                      */
-                    Proposal rejectedProposal = negotiationHistoric.get(round-1);
+                    Proposal rejectedProposal = null;
+                    try {
+                        rejectedProposal = (Proposal) cfp.getContentObject();
+                    } catch (UnreadableException e) {
+                        e.printStackTrace();
+                    }
                     System.out.println("rejected proposal = " +  rejectedProposal);
-                    String availabilityComment = rejectedProposal.getAvailabilityComment();
-                    String priceComment = rejectedProposal.getPriceComment();
-                            proposal = new Proposal(40000F,queueHead, this.getAgent().getAID());
+                    rejectedProposal.printComments();
+                    negotiationHistoric.put(round-1,rejectedProposal);
+                    proposal = new Proposal(40000F,queueHead, this.getAgent().getAID());
                 }
                 if (!resourcesQueue.isEmpty()){
                     System.out.println("!resourcesQueue.isEmpty()");
@@ -157,6 +162,7 @@ public class SellerAgent extends Agent implements Serializable{
                 long worstAvailability = getWorstAvailability(queueHead);
                 proposal.setAvailability(worstAvailability);
                 proposal.setPrice(65000F);
+                negotiationHistoric.put(round,proposal);
 
                 return proposal;
             }

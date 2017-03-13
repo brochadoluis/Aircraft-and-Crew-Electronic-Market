@@ -47,7 +47,7 @@ public class BuyerAgent extends Agent implements Serializable{
     @Override
     protected void setup() {
         createLogger();
-         initiateParameters();
+        initiateParameters();
         // Read the maximum cost as argument
         Object[] args = getArguments();
         if (args != null && args.length > 0) {
@@ -126,7 +126,7 @@ public class BuyerAgent extends Agent implements Serializable{
                         ACLMessage msg = (ACLMessage) e.nextElement();
                         if (msg.getPerformative() == ACLMessage.PROPOSE) {
                             ACLMessage reply = msg.createReply();
-                            reply.setPerformative(ACLMessage.REJECT_PROPOSAL);
+                            reply.setPerformative(ACLMessage.CFP);
                             acceptances.addElement(reply);
                             proposal = retrieveProposalContent(msg);
                             evaluateProposal(proposal);
@@ -150,7 +150,7 @@ public class BuyerAgent extends Agent implements Serializable{
                     else{
                         //Para cada resposta, fazer reply com CFP
                         logger.log(Level.SEVERE,"Preparing another CFP");
-                        Vector v = new Vector();
+                        /*Vector v = new Vector();
                         for (Object response:responses) {
                             ACLMessage resp = (ACLMessage) response;
                             ACLMessage cfp2 = resp.createReply();
@@ -169,9 +169,9 @@ public class BuyerAgent extends Agent implements Serializable{
                         }
                         for (Object vo:v) {
                             logger.log(Level.SEVERE,"vo = {0}", vo);
-                        }
+                        }*/
 
-                        newIteration(v);
+                        newIteration(acceptances);
                         logger.log(Level.SEVERE,"new iteration");
                         updateRound();
                         logger.log(Level.SEVERE,"Sending another CFP");
@@ -197,33 +197,26 @@ public class BuyerAgent extends Agent implements Serializable{
     }
 
     private void setProposalsFeedback(Vector responses, Vector acceptances) {
-        System.out.println("responses + " + responses.size());
-        System.out.println("acceptances + " + acceptances.size() );
         for(int i = 0; i < responses.size(); i++){
             ACLMessage msgReceived = (ACLMessage) responses.get(i);
-            Proposal response = null;
+            Proposal response;
             try {
                 response = (Proposal) msgReceived.getContentObject();
                 ACLMessage msgToSend = (ACLMessage) acceptances.get(i);
-                System.out.println("Msg to Send = " + msgToSend);
-                Proposal proposalWithComments = new Proposal(response.getPrice(),response.getResourcesProposed(),response.getSender()); //= (Proposal) msgToSend.getContentObject();
-                System.out.println("prop with asdasdacomments " + proposalWithComments);
+                Proposal proposalWithComments = new Proposal(response.getPrice(),response.getResourcesProposed(),response.getSender());
                 /**
                  * Evaluate/Compare with the proposal in the Best Proposal Queue
                  * if(preformative == performativa qlq)
                  * faz qlq coisa
                  */
                 proposalWithComments.setPriceComment(LOWER);
-                proposalWithComments.setAvailabilityComment(LOWER);
-                System.out.println("prop with fcomments " + proposalWithComments);
-                proposalWithComments.printComments();
+                proposalWithComments.setAvailabilityComment(OK);
                 msgToSend.setContentObject(proposalWithComments);
             } catch (UnreadableException e) {
-                e.printStackTrace();
+                logger.log(Level.SEVERE,"Could not get message's content: {0} ", e);
             } catch (IOException e) {
-                e.printStackTrace();
+                logger.log(Level.SEVERE,"Could not set message's content: {0} ", e);
             }
-            System.out.println("response = " + response);
         }
 /*
         Enumeration e = acceptances.elements();
@@ -239,9 +232,8 @@ public class BuyerAgent extends Agent implements Serializable{
             }
             if (reject.getPerformative() == ACLMessage.REJECT_PROPOSAL) {
                 *//**
-                 * Something to know what comments to do
-                 *//*
-                System.out.println("Isto?");
+         * Something to know what comments to do
+         *//*
                 System.out.println("isto = " + e);
                 Proposal rejectProposal;
                 try {
@@ -266,12 +258,9 @@ public class BuyerAgent extends Agent implements Serializable{
     }
 
     private Proposal retrieveProposalContent(ACLMessage msg) {
-        System.out.println("Declaratiion");
         Proposal p;
         try {
-            System.out.println("Nao atribui?");
             p = (Proposal) msg.getContentObject();
-            System.out.println("P = " + p);
             return p;
         } catch (UnreadableException e) {
             logger.log(Level.SEVERE,"Could not get message's content {0}", e);
@@ -280,7 +269,7 @@ public class BuyerAgent extends Agent implements Serializable{
     }
 
     private void createLogger() {
-        logger.setLevel(Level.FINE);
+        logger.setLevel(Level.CONFIG);
         // create an instance of Logger at the top of the file, as you would do with log4j
         FileHandler fh = null;   // true forces append mode
         try {
@@ -303,7 +292,7 @@ public class BuyerAgent extends Agent implements Serializable{
      */
     private void evaluateProposal(Proposal proposal) {
         logger.log(Level.CONFIG," Proposal ");
-        //proposal.printProposal();
+        proposal.printProposal();
         double priceAsked = proposal.getPrice();
         if(priceAsked <= maximumDisruptionCost) {
             bestProposalQ.add(proposal);
