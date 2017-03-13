@@ -5,7 +5,6 @@ import utils.Resource;
 
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 
 /**
@@ -13,6 +12,7 @@ import java.util.List;
  */
 public class Proposal implements Serializable {
     private double price;
+    private long availability, scheduledDeparture, delay;
     /**
      * private Date availability; ou Integer, em que 0 significa que cumpre o horario, mesmo que seja com antecedência,
      * ou seja, nao importa se entrega antes de tempo, importa que o voo sera cumprido sem atraso
@@ -22,10 +22,9 @@ public class Proposal implements Serializable {
     private String availabilityComment;
     private ArrayList<Resource> resourcesProposed = new ArrayList<>();
     private Integer round;
-
     private AID sender;
 
-    public Proposal(double price, /*Date availability,*/ List<Resource> resourcesProposed, AID sender) {
+    public Proposal(double price, List<Resource> resourcesProposed, AID sender) {
         this.price = price;
         this.resourcesProposed = (ArrayList<Resource>) resourcesProposed;
         this.sender = sender;
@@ -39,13 +38,13 @@ public class Proposal implements Serializable {
         this.price = price;
     }
 
-//    public Date getAvailability() {
-//        return availability;
-//    }
+    public long getAvailability() {
+        return availability;
+    }
 
-//    public void setAvailability(Date availability) {
-//        this.availability = availability;
-//    }
+    public void setAvailability(long availability) {
+        this.availability = availability;
+    }
 
     public String getPriceComment() {
         return priceComment;
@@ -79,6 +78,22 @@ public class Proposal implements Serializable {
         this.resourcesProposed = (ArrayList<Resource>) resourcesProposed;
     }
 
+    public long getScheduledDeparture() {
+        return scheduledDeparture;
+    }
+
+    public void setScheduledDeparture(long scheduledDeparture) {
+        this.scheduledDeparture = scheduledDeparture;
+    }
+
+    public long getDelay() {
+        return delay;
+    }
+
+    public void setDelay(long delay) {
+        this.delay = delay;
+    }
+
     public AID getSender() {
         return sender;
     }
@@ -88,10 +103,10 @@ public class Proposal implements Serializable {
     }
 
     public void printProposal(){
-        System.out.println("Price = " + this.price +"€. Comments: " + priceComment + " price ");
+        System.out.println("Price = " + this.price +"€ and availability = " + availability + ". Comments: " + priceComment + " price  and " + availabilityComment + " availability.");
     }
 
     public void printComments(){
-        System.out.println("Comment on price = " + this.priceComment /*+", and comment on availability = " + this.availabilityComment*/);
+        System.out.println("Comment on price = " + this.priceComment +", and comment on availability = " + this.availabilityComment);
     }
 }

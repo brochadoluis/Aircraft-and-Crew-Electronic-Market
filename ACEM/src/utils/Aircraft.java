@@ -12,25 +12,14 @@ public class Aircraft extends Resource implements Serializable{
      */
     private String type;
     private Integer capacity;
+    private Long aircraftAvailability = null;
 
-
-    /*public Aircraft(Date startTime, Date duration, Date delay, float price) {
-		super(startTime, duration, delay, price);
-		// TODO Auto-generated constructor stub
-	}*/
-
-    public Aircraft(float price, String type, Integer capacity) {
-		super(price);
+    public Aircraft(String type, Integer capacity) {
+        super();
         this.type = type;
         this.capacity = capacity;
-	}
+    }
 
-	/*public Aircraft(String type, Integer capacity) {
-        this.type = type;
-        this.capacity = capacity;
-    }*/
-
-    @Override
     public String getType() {
         return type;
     }
@@ -39,7 +28,6 @@ public class Aircraft extends Resource implements Serializable{
         this.type = type;
     }
 
-    @Override
     public Integer getCapacity() {
         return capacity;
     }
@@ -48,42 +36,31 @@ public class Aircraft extends Resource implements Serializable{
         this.capacity = capacity;
     }
 
-    public void printAircraft(){
-        System.out.println("Aircraft Type = " + this.type +" and Aircraft Capacity =  " + this.capacity);
-    }
-
     @Override
     public void printResource() {
         System.out.print("Aircraft Type = " + this.type +" and Aircraft Capacity =  " + this.capacity + " with ");
-        super.print();
     }
 
-    public boolean compareAircraft(Aircraft a){
-        return(a.getType().equals(this.getType()) &&
-                a.getCapacity().equals(this.getCapacity()));
-    }
-
-    @Override
-    public boolean compareResource(Resource r) {
-        if(r.getClass().equals(this.getClass())){
-
-            return compareAircraft((Aircraft) r);
-        }
-        return false;
-    }
-
-    @Override
     public Integer getNumber() {
         return null;
     }
 
-    @Override
     public String getCategory() {
         return null;
     }
 
-    @Override
     public String getQualifications() {
         return null;
     }
+
+    @Override
+    public Long getAvailability() {
+        return aircraftAvailability;
+    }
+
+    @Override
+    public void setAvailability(Long aircraftAvailability) {
+        this.aircraftAvailability = aircraftAvailability;
+    }
+
 }

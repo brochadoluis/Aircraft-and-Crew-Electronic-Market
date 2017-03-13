@@ -20,6 +20,7 @@ import java.util.logging.FileHandler;
 import java.util.logging.Level;
 import java.util.logging.SimpleFormatter;
 
+
 /**
  * Created by Luis on 21/02/2017.
  */
@@ -38,7 +39,20 @@ public class SellerAgent extends Agent implements Serializable{
     //Lista de litas com Ronda-Recurso-Proposta?
     //HashMap<Ronda,Proposta>
     private HashMap<Integer,Proposal> negotiationHistoric = new HashMap<>();
+    /**
+     * Price range between:
+     * min = displacement cost + 50% displacement cost
+     * max = displacement cost + 200% displacement cost
+     */
+    private HashMap<Resource,Double> resourcePrice = new HashMap<>();
+    private HashMap<Resource,Long> resourceMaxAvailability = new HashMap<>();
     private Proposal proposal;
+    /**
+     * Max availability is the availability read from DB
+     * The availaibility sent in the proposal may not be equal to max, to
+     * ensure that availability is a negotiable parameter
+     */
+    long scheduledDeparture,delay, duration, maxAvailability;
 
 
 
@@ -62,7 +76,6 @@ public class SellerAgent extends Agent implements Serializable{
 
             @Override
             protected ACLMessage handleCfp(ACLMessage cfp) throws NotUnderstoodException, RefuseException {
-                ArrayList<Resource> queueHead;
                 /**
                  * Fetch Resources in DataBase
                  * Compare Resource form message with DataBase Fetch results
@@ -78,27 +91,43 @@ public class SellerAgent extends Agent implements Serializable{
                  * e so avaliar a proposta (comentarios), alterar ou nao, a proposta a fazer
                  *
                  */
-                round++;
+                //Test: no resources available => doesnt respond to cfp/respond refuse?
+                updateRound();
                 logger.log(Level.INFO,"Agent {0}: CFP received from {1}. Action is {2} ",new Object[]{getLocalName(),cfp.getSender().getLocalName(),cfp.getContent()});
-                logger.log(Level.INFO,"Round n(upon receiving CFP> {0})", round);
-                //First Round, means that seller needs to fetch for available resources in DB
-                // if queue is empty and historic too, then its the first round, if historic is not empty, there are no more resources to negotiate
-                if(resourcesQueue == null) {
-                    ArrayList<Resource> askedResources = getMsgResources(cfp);
-                    //Fetch funtion, writes to an ArrayList the resources available
-                    solutions = getAvailableMatchingResources(askedResources);
-                    putResourcesIntoQueue(solutions);
+                logger.log(Level.INFO,"Round n(upon receiving CFP: {0})", round);
+                /**
+                 * First Round means that sellers need to fetch for available resources in the DataBase
+                 * The first round is identified by having both, Resource's Queue and Negotiation Historic HashMap, empty
+                 */
+                if(resourcesQueue == null && negotiationHistoric.isEmpty()) {
+                    handleFirstCFP(cfp);
+                }/*
+                while(!resourcesQueue.isEmpty()){
+                    ArrayList<Resource> head = resourcesQueue.poll();
+                    for (Resource r: head)
+                        r.printResource();
+                }*/
+                else{
+                    ArrayList<Resource> queueHead;
+                    queueHead =  resourcesQueue.peek();
+                    /**
+                     * Comments received in Reject, are applied to the proposal, price and availability may be updated
+                     */
+                    Proposal rejectedProposal = negotiationHistoric.get(round-1);
+                    System.out.println("rejected proposal = " +  rejectedProposal);
+                    String availabilityComment = rejectedProposal.getAvailabilityComment();
+                    String priceComment = rejectedProposal.getPriceComment();
+                            proposal = new Proposal(40000F,queueHead, this.getAgent().getAID());
                 }
-                queueHead =  resourcesQueue.peek();
-                proposal = new Proposal(40000f, queueHead, this.getAgent().getAID());
-                if (!resourcesQueue.isEmpty()) {
-                    logger.log(Level.INFO,"Agent {0}: Searching for resources to lease ",getLocalName());
-                    logger.log(Level.INFO,"Agent {0}: Proposing",getLocalName());
+                if (!resourcesQueue.isEmpty()){
+                    System.out.println("!resourcesQueue.isEmpty()");
                     ACLMessage propose = cfp.createReply();
                     propose.setPerformative(ACLMessage.PROPOSE);
+                    System.out.println("Proposal antes de enviar " + proposal);
                     try {
                         //Add proposal to historic
                         propose.setContentObject(proposal);
+                        System.out.println("ASASDSAD = " + proposal);
                     } catch (IOException e) {
                         logger.log(Level.SEVERE,"Could not set the message's content {0}",e);
                     }
@@ -111,10 +140,31 @@ public class SellerAgent extends Agent implements Serializable{
                 }
             }
 
+            private Proposal handleFirstCFP(ACLMessage cfp) {
+                ArrayList<Resource> queueHead;
+                ArrayList<Resource> askedResources = getMsgResources(cfp);
+                logger.log(Level.INFO,"Agent {0}: Searching for resources to lease ",getLocalName());
+                logger.log(Level.INFO,"Agent {0}: Proposing",getLocalName());
+                //Fetch funtion, writes to an ArrayList the resources available
+                solutions = getAvailableMatchingResources(askedResources);
+                System.out.println("SOLUTIONS SIZE = " + solutions.size());
+                putResourcesIntoQueue(solutions);
+                queueHead =  resourcesQueue.peek();
+                /**
+                 * Price here must be calculated, for example, in getAvailableMatchingResources
+                 */
+                proposal = new Proposal(40000F,queueHead, this.getAgent().getAID());
+                long worstAvailability = getWorstAvailability(queueHead);
+                proposal.setAvailability(worstAvailability);
+                proposal.setPrice(65000F);
+
+                return proposal;
+            }
+
             @Override
             protected ACLMessage handleAcceptProposal(ACLMessage cfp, ACLMessage propose,ACLMessage accept) throws FailureException {
                 logger.log(Level.INFO,"Agent {0}: Proposal Accepted",getLocalName());
-                round++;
+                updateRound();
                 logger.log(Level.INFO,"Round n(handle accept proposal): {0}",round);
                 if (true) { // contractualization
                     logger.log(Level.INFO,"Agent {0}: Action successfully performed",getLocalName());
@@ -130,6 +180,7 @@ public class SellerAgent extends Agent implements Serializable{
 
             @Override
             protected void handleRejectProposal(ACLMessage cfp, ACLMessage propose, ACLMessage reject) {
+                //Content == null => end?
                 logger.log(Level.INFO,"Agent {0}: Proposal rejected",getLocalName());
                 try {
                     logger.log(Level.INFO,"Message received is {0}:",reject.getContentObject());
@@ -137,7 +188,7 @@ public class SellerAgent extends Agent implements Serializable{
                 } catch (UnreadableException e) {
                     logger.log(Level.INFO,"Could not et message's content {0}",e);
                 }
-                round++;
+                updateRound();
                 logger.log(Level.INFO,"Round n(handle reject): {0}",round);
                 negotiationHistoric.put(round,proposal);
                 logger.log(Level.INFO,"Historic updated. It has now: ");
@@ -152,6 +203,10 @@ public class SellerAgent extends Agent implements Serializable{
                  */
             }
         } );
+    }
+
+    private void updateRound() {
+        round++;
     }
 
     private void createLogger() {
@@ -172,36 +227,77 @@ public class SellerAgent extends Agent implements Serializable{
 
     /**
      * getAvailableMatchingResources method fetches Resources in DataBase
-     * Compare Resources from message with DataBase fetch results
-     * Pushes the most similar Resources found in DataBase to a stack/queue
-     * Apply compareAskedResourceWithAvailableOnes and send the result to a stack/queue
-     * @param askedResources
+     * Builds an ArrayList<Resource> for each query
+     * Combines the ArrayLists obtained from the queries
+     * Pushes the result to the queue, by utility, in decreasing order,
+     * using the Utility Comparator
+     * @param askedResources: Resources received in ACL Message
      */
     private ArrayList<ArrayList<Resource>> getAvailableMatchingResources(ArrayList<Resource> askedResources) {
         ArrayList<Resource> availableResources = new ArrayList<>();
-        Resource r1  = new Aircraft(1432.53f,"Boeing 777", 396);
-        Resource r2 = new CrewMember(3840.54f,2, "Pilot", "English A2");
-        Resource r3 = new Aircraft(1200.534f,"Boeing 767", 375);
-        Resource r4 = new CrewMember(689.54f,8, "Flight Attendant", "English B2");
-        Resource r5 = new Aircraft(1200.534f,"Airbus A318", 132);
-        Resource r6 = new CrewMember(689.54f,1, "Flight Medic", "English A2");
-        Resource r7 = new Aircraft(1200.534f,"Airbus A330-200 Freighter", 407);
-        Resource r8 = new CrewMember(689.54f,4, "Load Master", "English C2");
-        Resource r9  = new Aircraft(1432.53f,"Boeing 777", 396);
-        Resource r10 = new CrewMember(3840.54f,2, "Pilot", "English A2");
+        ArrayList<ArrayList<Resource>> allResourcesCombinations = new ArrayList<>();
+        /**
+         * For each askedResource, create an ArrayList<Resource> where the resource to fetch in the DB
+         * is askedResource.getClass (Switch here to prepare the query?)
+         * Check something to get the availability of each resource (time needed to make the resource
+         * available in the local needed) and that displacement price to set min price.
+         *
+         * http://stackoverflow.com/questions/14767697/dynamically-creating-arraylist-inside-a-loop
+         * Lista de listas, cria uma lista, chama a XPTO e adiciona essa lista a lista de listas
+         * assim ja da para fazer combinaçoes
+         * Exemplo
+         * FUNÇAO_XPTO(askedResource.getClass)
+         * FUNÇAO_XPTO
+         * switch(agument)
+         * case Aircraft -> faz query com capacidade do aviao
+         * case CrewMember -> faz query com os campos do tripulante
+         *
+         *
+         * para combinar numa lista, tipo {{1,2,3},{1,2,3},{1,2,3}}
+         * http://stackoverflow.com/questions/9446929/value-combinations-of-n-subarrays-in-java
+         * experimentar este
+         *
+         * Falta tambem ver se os recuros estao disponiveis na duraçao pretendida
+         *
+         */
+        Resource r1  = new Aircraft("Boeing 777", 396);
+        r1.setAvailability(1500L);
+        Resource r2 = new CrewMember(2, "Pilot", "English A2");
+        r2.setAvailability(12900L);
+        Resource r3 = new Aircraft("Boeing 767", 400);;
+        r3.setAvailability(1900L);
+        Resource r4 = new Aircraft("Airbus A330-200 Freighter", 407);
+        r4.setAvailability(900L);
+        Resource r5  = new Aircraft("Boeing 777", 396);
+        r5.setAvailability(1000L);
+        Resource r6 = new CrewMember(2, "Pilot", "English A2");
+        r6.setAvailability(1150L);
         availableResources.add(r1);
         availableResources.add(r2);
         availableResources.add(r3);
         availableResources.add(r4);
         availableResources.add(r5);
         availableResources.add(r6);
-        availableResources.add(r7);
-        availableResources.add(r8);
-        availableResources.add(r9);
-        availableResources.add(r10);
         logger.log(Level.INFO,"Available Resources {0}", availableResources);
-        //Depending on the query to the DB, compare may not be needed
-        return compareAskedResourceWithAvailableOnes(askedResources, availableResources);
+        //The query returns resources within the parameters, so there's no reason to compare
+
+        for(int i = 0; i < availableResources.size(); i++) {
+            for (int j = i; j < availableResources.size(); j++) {
+                if (availableResources.get(i).getClass() != availableResources.get(j).getClass()) {
+                    ArrayList<Resource> combination = new ArrayList<>();
+                    combination.ensureCapacity(askedResources.size());
+                    combination.add(availableResources.get(i));
+                    combination.add(availableResources.get(j));
+                    allResourcesCombinations.add(combination);
+                    continue;
+                }
+            }
+        }
+        /*for (ArrayList<Resource> r:allResourcesCombinations
+             ) {
+
+        }*/
+        return allResourcesCombinations;
     }
 
     //Return peek or element from queue
@@ -216,7 +312,7 @@ public class SellerAgent extends Agent implements Serializable{
             resourcesQueue = new PriorityQueue<>(queueSize, comparator );
             for(int i = 0; i < solutions.size(); i++) {
                 System.out.println("Solutions.get(" + i + ") = " +solutions.get(i));
-                System.out.println("Solutions Size = " + solutions.size());
+
                 resourcesQueue.add(solutions.get(i));
             }
             /**
@@ -241,45 +337,24 @@ public class SellerAgent extends Agent implements Serializable{
     }
 
     /**
-     * compareAskedResourceWithAvailableOnes method, compares the resources asked by Buyer Agent
-     * with the resources available for one Seller
-     * @param askedResources: List of resources asked by Buyer
-     * @param availableResources: List of Seller's all available resources
-     * @return An Arraylist of resources, containing the resources that match with the ones asked
+     * setProposalAvailability method, finds a proposal's worst (higher) availability,
+     * among the resources contained in the proposal
+     * @param resources: ArrayList with the resources to be negotiated
+     * @return A Long value, corresponding to the worst availability among the resources to be negotiated
      */
-    private ArrayList< ArrayList<Resource> > compareAskedResourceWithAvailableOnes(ArrayList<Resource> askedResources, ArrayList<Resource> availableResources) {
-        //ArrayList< ArrayList<Resource> > solutions = new ArrayList<>();
-        ArrayList<Resource> aux = new ArrayList<>();
-        aux.ensureCapacity(askedResources.size());
-        for(int i = 0,j = 0; i < askedResources.size() && j < availableResources.size();i++, j++){
-            while(!availableResources.isEmpty()){
-                if(askedResources.get(i).compareResource(availableResources.get(j))){
-                    aux.add(availableResources.get(j));
-                    availableResources.remove(j);
-                    j = 0;
-                    if(i == askedResources.size()-1){
-                        i = 0;
-                    }
-                    else{
-                        i++;
-                    }
-                }
-                else {
-                    availableResources.remove(j);
-                }
-                //To ensure that aux always pushes to solutions
-                if(aux.size() == askedResources.size()) {
-                    logger.log(Level.INFO,"AUX:{0}",aux);
-                    solutions.add(aux);
-                    aux = new ArrayList<>();
-                    aux.ensureCapacity(askedResources.size());
+    private long getWorstAvailability(ArrayList<Resource> resources) {
+        long worstAvailability = -1;
+        if(resources.get(0).getAvailability() != null) {
+            worstAvailability = resources.get(0).getAvailability();
+            for (int i = 0; i < resources.size(); i++) {
+                Resource aResource = resources.get(i);
+                worstAvailability = aResource.getAvailability();
+                if (aResource.getAvailability() > worstAvailability) {
+                    worstAvailability = aResource.getAvailability();
                 }
             }
         }
-        for (ArrayList<Resource> sol:solutions) {
-            logger.log(Level.INFO,"Solution: {0}",sol);
-        }
-        return solutions;
+        return worstAvailability;
     }
 
     /**
@@ -289,13 +364,16 @@ public class SellerAgent extends Agent implements Serializable{
      * @return A list of resources contained in msg
      */
     protected ArrayList<Resource> getMsgResources(ACLMessage msg) {
-
         ArrayList<Resource> resourcesToBeLeased = null;
+        Proposal cfp = null;
         try {
-            resourcesToBeLeased = (ArrayList<Resource>) msg.getContentObject();
+            cfp = (Proposal) msg.getContentObject();
         } catch (UnreadableException e) {
-            logger.log(Level.SEVERE,"Could not get message's content",e);
+            e.printStackTrace();
         }
+        resourcesToBeLeased = (ArrayList<Resource>) cfp.getResourcesProposed();
+        scheduledDeparture = cfp.getScheduledDeparture();
+        delay = cfp.getDelay();
         return resourcesToBeLeased;
     }
 }

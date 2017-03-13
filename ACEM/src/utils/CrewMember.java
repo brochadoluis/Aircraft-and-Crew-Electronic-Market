@@ -14,21 +14,15 @@ public class CrewMember extends Resource implements Serializable{
     private Integer number;
     private String category;
     private String qualifications;
+    private Long crewMemberAvailability = null;
 
-    /*public CrewMember(Integer number, String category, String qualifications) {
-        this.number = number;
-        this.category = category;
-        this.qualifications = qualifications;
-    }*/
-
-    public CrewMember(float price, Integer number, String category, String qualifications) {
-        super(price);
+    public CrewMember(Integer number, String category, String qualifications) {
+        super();
         this.number = number;
         this.category = category;
         this.qualifications = qualifications;
     }
 
-    @Override
     public Integer getNumber() {
         return number;
     }
@@ -37,7 +31,6 @@ public class CrewMember extends Resource implements Serializable{
         this.number = number;
     }
 
-    @Override
     public String getCategory() {
         return category;
     }
@@ -46,7 +39,6 @@ public class CrewMember extends Resource implements Serializable{
         this.category = category;
     }
 
-    @Override
     public String getQualifications() {
         return qualifications;
     }
@@ -55,35 +47,26 @@ public class CrewMember extends Resource implements Serializable{
         this.qualifications = qualifications;
     }
 
-    @Override
     public void printResource() {
         System.out.print("Crew Member Number = " + this.number +", Crew Member Category =  "
                 + this.category +" and Crew Member qualifications =  " + this.qualifications + " with ");
-        super.print();
     }
 
-    public boolean compareCrewMembers(CrewMember cm){
-        return(cm.getNumber().equals(this.getNumber()) &&
-                cm.getCategory().equals(this.getCategory()) &&
-                cm.getQualifications().equals(this.getQualifications()));
-    }
-
-    @Override
-    public boolean compareResource(Resource r) {
-        if(r.getClass().equals(this.getClass())){
-
-            return compareCrewMembers((CrewMember) r);
-        }
-        return false;
-    }
-
-    @Override
     public String getType() {
         return null;
     }
 
-    @Override
     public Integer getCapacity() {
         return null;
+    }
+
+    @Override
+    public Long getAvailability() {
+        return crewMemberAvailability;
+    }
+
+    @Override
+    public void setAvailability(Long crewMemberAvailability) {
+        this.crewMemberAvailability = crewMemberAvailability;
     }
 }

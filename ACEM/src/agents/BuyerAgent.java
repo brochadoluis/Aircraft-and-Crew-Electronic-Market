@@ -20,27 +20,34 @@ import java.util.logging.FileHandler;
 import java.util.logging.Level;
 import java.util.logging.SimpleFormatter;
 
+import hirondelle.date4j.*;
+
+
+
 /**
  * Created by Luis on 20/02/2017.
  */
 public class BuyerAgent extends Agent implements Serializable{
+    private final String LOWER = "LOWER";
+    private final String HIGHER = "HIGHER";
+    private final String OK = "OK";
     private final Logger logger = jade.util.Logger.getMyLogger(this.getClass().getName());
     private PriorityQueue<Proposal> bestProposalQ = new PriorityQueue<>();
     private ArrayList<Resource> resourcesMissing = new ArrayList<>();
-    private float resourcesCost;
     private double maximumDisruptionCost;
-    //private Data scheduledDeparture, flightDuration, flightDelay;
+    private DateTime scheduledDeparture, flightDuration, flightDelay;
     private String company = "";
     private ArrayList<AID> sellers = new ArrayList<>();
     private int negotiationParticipants;
     private Integer round = 0;
+    private long scheduledDepartureMilli, flightDurationMilli, flightDelayMilli, durationInMilli, delayToMinimizeInMilli;
     private Proposal proposal;
 //    private final String role = "Buyer";
 
     @Override
     protected void setup() {
         createLogger();
-        // initiateParameters();
+         initiateParameters();
         // Read the maximum cost as argument
         Object[] args = getArguments();
         if (args != null && args.length > 0) {
@@ -55,14 +62,13 @@ public class BuyerAgent extends Agent implements Serializable{
              * findDisruption() - simulates a disruption, creating the resources to search in the market
              */
             //The price calculated by Buyer is the maximum to be paid
-            Resource a1 = new Aircraft(0f, "Boeing 777", 396);
-            Resource cm1 = new CrewMember(0f, 2, "Pilot", "English A2");
-            resourcesMissing.add(a1);
-            resourcesMissing.add(cm1);
             negotiationParticipants = sellers.size();
             DFAgentDescription dfd = new DFAgentDescription();
             // Fill the CFP message
             logger.log(Level.INFO,"Round n (Before first CFP): {0}", round);
+            Proposal cfp = new Proposal(0F,resourcesMissing, this.getAID());
+            cfp.setScheduledDeparture(1489053600000L);
+            cfp.setDelay(-2700000L);
             ACLMessage msg = new ACLMessage(ACLMessage.CFP);
             for (AID seller:sellers) {
                 msg.addReceiver(seller);
@@ -71,8 +77,8 @@ public class BuyerAgent extends Agent implements Serializable{
             // We want to receive a reply in 10 secs
             msg.setReplyByDate(new Date(System.currentTimeMillis() + 10000));
             try {
-                msg.setContentObject(resourcesMissing);
-                round++;
+                msg.setContentObject(cfp);
+                updateRound();
             } catch (IOException e) {
                 logger.log(Level.SEVERE,"Could not set message's content: {0} ", e);
             }
@@ -120,32 +126,30 @@ public class BuyerAgent extends Agent implements Serializable{
                         ACLMessage msg = (ACLMessage) e.nextElement();
                         if (msg.getPerformative() == ACLMessage.PROPOSE) {
                             ACLMessage reply = msg.createReply();
-                            // for each proposal give feedback here!
                             reply.setPerformative(ACLMessage.REJECT_PROPOSAL);
                             acceptances.addElement(reply);
-                            retrieveProposalContent(msg);
+                            proposal = retrieveProposalContent(msg);
                             evaluateProposal(proposal);
                             if (!bestProposalQ.isEmpty()) {
                                 bestProposer = msg.getSender();
                                 accept = reply;
                                 logger.log(Level.INFO, "Best proposal is: ");
                                 bestProposalQ.peek().printProposal();
-                                //bestProposalQ.add();
                             }
                         }
                     }
-                    setProposalsFeedback(acceptances);
+                    setProposalsFeedback(responses, acceptances);
                     // Accept the proposal of the best proposer
                     if (accept != null) {
                         logger.log(Level.INFO,"Accepting proposal {0}, from responder {1}", new Object[]{bestProposalQ.toString(),bestProposer.getName()});
                         accept.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
-                        round++;
+                        updateRound();
                         logger.log(Level.INFO,"Round n (After Accept): {1}", round);
                     }
                     //accept == null => send another cfp
                     else{
                         //Para cada resposta, fazer reply com CFP
-                        logger.log(Level.SEVERE,"Prepareing another CFP");
+                        logger.log(Level.SEVERE,"Preparing another CFP");
                         Vector v = new Vector();
                         for (Object response:responses) {
                             ACLMessage resp = (ACLMessage) response;
@@ -156,8 +160,8 @@ public class BuyerAgent extends Agent implements Serializable{
                             // We want to receive a reply in 10 secs
                             cfp2.setReplyByDate(new Date(System.currentTimeMillis() + 10000));
                             try {
-                                cfp2.setContentObject("");
-                                round++;
+                                cfp2.setContentObject(null);
+                                updateRound();
                             } catch (IOException e1) {
                                 logger.log(Level.SEVERE,"Could not set message's content: {0} ", e1);
                             }
@@ -169,10 +173,9 @@ public class BuyerAgent extends Agent implements Serializable{
 
                         newIteration(v);
                         logger.log(Level.SEVERE,"new iteration");
-//                        round++;
-                        //send another CFP
+                        updateRound();
                         logger.log(Level.SEVERE,"Sending another CFP");
-                        round++;
+                        updateRound();
                     }
 
                 }
@@ -189,28 +192,91 @@ public class BuyerAgent extends Agent implements Serializable{
         }
     }
 
-    private void setProposalsFeedback(Vector acceptances) {
-        Enumeration e = acceptances.elements();
-        while (e.hasMoreElements()) {
-            ACLMessage reject = (ACLMessage) e.nextElement();
-            if (reject.getPerformative() == ACLMessage.REJECT_PROPOSAL) {
-                // Feedback evaluation
-                try {
-                    reject.setContentObject("Lower");
-                } catch (IOException e1) {
-                    logger.log(Level.SEVERE, "Could not set message's content {0}", e1);
-                }
-
-            }
-        }
+    private void updateRound() {
+        round++;
     }
 
-    private void retrieveProposalContent(ACLMessage msg) {
-        try {
-            proposal = (Proposal) msg.getContentObject();
-        } catch (UnreadableException e1) {
-            logger.log(Level.SEVERE,"Could not get message's content {0}", e1);
+    private void setProposalsFeedback(Vector responses, Vector acceptances) {
+        System.out.println("responses + " + responses.size());
+        System.out.println("acceptances + " + acceptances.size() );
+        for(int i = 0; i < responses.size(); i++){
+            ACLMessage msgReceived = (ACLMessage) responses.get(i);
+            Proposal response = null;
+            try {
+                response = (Proposal) msgReceived.getContentObject();
+                ACLMessage msgToSend = (ACLMessage) acceptances.get(i);
+                System.out.println("Msg to Send = " + msgToSend);
+                Proposal proposalWithComments = new Proposal(response.getPrice(),response.getResourcesProposed(),response.getSender()); //= (Proposal) msgToSend.getContentObject();
+                System.out.println("prop with asdasdacomments " + proposalWithComments);
+                /**
+                 * Evaluate/Compare with the proposal in the Best Proposal Queue
+                 * if(preformative == performativa qlq)
+                 * faz qlq coisa
+                 */
+                proposalWithComments.setPriceComment(LOWER);
+                proposalWithComments.setAvailabilityComment(LOWER);
+                System.out.println("prop with fcomments " + proposalWithComments);
+                proposalWithComments.printComments();
+                msgToSend.setContentObject(proposalWithComments);
+            } catch (UnreadableException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            System.out.println("response = " + response);
         }
+/*
+        Enumeration e = acceptances.elements();
+        System.out.println("e = " + acceptances.size());
+        while (e.hasMoreElements()) {
+            ACLMessage reject = (ACLMessage) e.nextElement();
+            System.out.println("reject  = " + reject);
+            System.out.println("reject  = " + proposal);
+            try {
+                System.out.println("Reject ACL = " + reject.getContentObject());
+            } catch (UnreadableException e1) {
+                e1.printStackTrace();
+            }
+            if (reject.getPerformative() == ACLMessage.REJECT_PROPOSAL) {
+                *//**
+                 * Something to know what comments to do
+                 *//*
+                System.out.println("Isto?");
+                System.out.println("isto = " + e);
+                Proposal rejectProposal;
+                try {
+                    rejectProposal = (Proposal) reject.getContentObject();
+                    System.out.println("Reject Proposal; asdasdsa " + rejectProposal);
+                } catch (UnreadableException e1) {
+                    e1.printStackTrace();
+                }
+                //Proposal rejectProposal = retrieveProposalContent(reject);
+                //System.out.println("Reject Proposal = " + rejectProposal);
+                //rejectProposal.setPriceComment("LOWER");
+                //rejectProposal.setAvailabilityComment("LOWER");
+                // Feedback evaluation
+                *//*try {
+                    reject.setContentObject(rejectProposal);
+                } catch (IOException e1) {
+                    logger.log(Level.SEVERE, "Could not set message's content {0}", e1);
+                }*//*
+
+            }
+        }*/
+    }
+
+    private Proposal retrieveProposalContent(ACLMessage msg) {
+        System.out.println("Declaratiion");
+        Proposal p;
+        try {
+            System.out.println("Nao atribui?");
+            p = (Proposal) msg.getContentObject();
+            System.out.println("P = " + p);
+            return p;
+        } catch (UnreadableException e) {
+            logger.log(Level.SEVERE,"Could not get message's content {0}", e);
+        }
+        return null;
     }
 
     private void createLogger() {
@@ -230,8 +296,7 @@ public class BuyerAgent extends Agent implements Serializable{
 
     /**
      * evaluateProposal method evaluates the proposals received
-     * according to Buyer's utility. Selects the best and adds it to
-     * the Best Proposal Queue, add
+     * according to Buyer's utility. Sets comments
      *
      * @param proposal : Proposal read from ACL Message
      * @return true if all resources match, false otherwise
@@ -276,5 +341,17 @@ public class BuyerAgent extends Agent implements Serializable{
         /**
          * Connect to DB and read values
          */
+        scheduledDeparture = new DateTime("2017-03-09 10:00:00");
+        flightDelay = new DateTime("2017-03-09 10:45:00");
+        flightDuration = new DateTime("2017-03-09 18:00:00");
+        scheduledDepartureMilli = scheduledDeparture.getMilliseconds(TimeZone.getTimeZone("GMT"));
+        flightDelayMilli = flightDelay.getMilliseconds(TimeZone.getTimeZone("GMT"));
+        flightDurationMilli = flightDuration.getMilliseconds(TimeZone.getTimeZone("GMT"));
+        durationInMilli = flightDurationMilli - scheduledDepartureMilli;
+        delayToMinimizeInMilli = scheduledDepartureMilli - flightDelayMilli;
+        Resource a1 = new Aircraft("Boeing 777", 396);
+        Resource cm1 = new CrewMember(2, "Pilot", "English A2");
+        resourcesMissing.add(a1);
+        resourcesMissing.add(cm1);
     }
 }
