@@ -1,6 +1,7 @@
 package utils;
 
 import java.io.Serializable;
+import java.util.function.LongToDoubleFunction;
 
 /**
  * Created by Luis on 20/02/2017.
@@ -13,6 +14,8 @@ public class Aircraft extends Resource implements Serializable{
     private String type;
     private Integer capacity;
     private Long aircraftAvailability = null;
+    private Long aircraftDelay = null;
+    private double displacementCost = 0;
 
     public Aircraft(String type, Integer capacity) {
         super();
@@ -37,8 +40,13 @@ public class Aircraft extends Resource implements Serializable{
     }
 
     @Override
-    public void printResource() {
-        System.out.print("Aircraft Type = " + this.type +" and Aircraft Capacity =  " + this.capacity + " with ");
+    public Double getPrice() {
+        return displacementCost;
+    }
+
+    @Override
+    public void setPrice(double cost) {
+        this.displacementCost = cost;
     }
 
     public Integer getNumber() {
@@ -54,6 +62,16 @@ public class Aircraft extends Resource implements Serializable{
     }
 
     @Override
+    public Long getDelay(){
+        return aircraftDelay;
+    }
+
+    @Override
+    public void setDelay(Long aircraftDelay) {
+        this.aircraftDelay = aircraftDelay;
+    }
+
+    @Override
     public Long getAvailability() {
         return aircraftAvailability;
     }
@@ -61,6 +79,11 @@ public class Aircraft extends Resource implements Serializable{
     @Override
     public void setAvailability(Long aircraftAvailability) {
         this.aircraftAvailability = aircraftAvailability;
+    }
+
+    @Override
+    public void printResource() {
+        System.out.print("Aircraft Type = " + this.type +" and Aircraft Capacity =  " + this.capacity + " with ");
     }
 
 }

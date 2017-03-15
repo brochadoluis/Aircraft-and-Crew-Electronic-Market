@@ -13,20 +13,18 @@ import java.util.Comparator;
  *  Nao sera um comparator de double? Visto que a utilidade sera um double
  */
 public class UtilityComparator implements Comparator<ArrayList<Resource>> {
-
+    private SellerAgent sa = new SellerAgent();
     @Override
-    public int compare(ArrayList<Resource> resources1, ArrayList <Resource> resources2) {
-        ArrayList<Resource> proposed1 = resources1;
-        ArrayList<Resource> proposed2 = resources2;
-        /**
-         * Calculate Utilities and if p1 is higher than p2, return 1, return false otherwise?
-         */
+    public int compare(ArrayList<Resource> resources1, ArrayList<Resource> resources2) {
+        double r1TotalPrice, r2TotalPrice;
+        r1TotalPrice = sa.sumResourcesPrice(resources1);
+        r2TotalPrice = sa.sumResourcesPrice(resources2);
+
+        if(r1TotalPrice < r2TotalPrice)
+            return 1;
+        if(r1TotalPrice > r2TotalPrice)
+            return -1;
+
         return 0;
     }
-
-/*    @Override
-    public int compare(Object o1, Object o2) {
-
-        return 0;
-    }*/
 }

@@ -24,8 +24,9 @@ public class Proposal implements Serializable {
     private Integer round;
     private AID sender;
 
-    public Proposal(double price, List<Resource> resourcesProposed, AID sender) {
+    public Proposal(double price, long availability, List<Resource> resourcesProposed, AID sender) {
         this.price = price;
+        this.availability = availability;
         this.resourcesProposed = (ArrayList<Resource>) resourcesProposed;
         this.sender = sender;
     }

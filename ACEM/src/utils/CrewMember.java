@@ -15,6 +15,8 @@ public class CrewMember extends Resource implements Serializable{
     private String category;
     private String qualifications;
     private Long crewMemberAvailability = null;
+    private Long getCrewMemberDelay = null;
+    private double displacementCost = 0;
 
     public CrewMember(Integer number, String category, String qualifications) {
         super();
@@ -52,6 +54,16 @@ public class CrewMember extends Resource implements Serializable{
                 + this.category +" and Crew Member qualifications =  " + this.qualifications + " with ");
     }
 
+    @Override
+    public Double getPrice() {
+        return displacementCost;
+    }
+
+    @Override
+    public void setPrice(double cost) {
+        this.displacementCost = cost;
+    }
+
     public String getType() {
         return null;
     }
@@ -68,5 +80,15 @@ public class CrewMember extends Resource implements Serializable{
     @Override
     public void setAvailability(Long crewMemberAvailability) {
         this.crewMemberAvailability = crewMemberAvailability;
+    }
+
+    @Override
+    public Long getDelay() {
+        return getCrewMemberDelay;
+    }
+
+    @Override
+    public void setDelay(Long getCrewMemberDelay) {
+        this.getCrewMemberDelay = getCrewMemberDelay;
     }
 }

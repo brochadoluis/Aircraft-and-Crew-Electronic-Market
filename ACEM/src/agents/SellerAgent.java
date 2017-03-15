@@ -47,12 +47,16 @@ public class SellerAgent extends Agent implements Serializable{
     private HashMap<Resource,Double> resourcePrice = new HashMap<>();
     private HashMap<Resource,Long> resourceMaxAvailability = new HashMap<>();
     private Proposal proposal;
+    private double maximumPrice, minimumPrice;
     /**
      * Max availability is the availability read from DB
      * The availaibility sent in the proposal may not be equal to max, to
      * ensure that availability is a negotiable parameter
      */
     long scheduledDeparture,delay, duration, maxAvailability;
+    private final String LOWER = "LOWER";
+    private final String MUCH_LOWER = "MUCH LOWER";
+    private final String OK = "OK";
 
 
 
@@ -83,13 +87,6 @@ public class SellerAgent extends Agent implements Serializable{
                  * Compare both Resources
                  * Calculate utility and price and creates msg with resource's price and availability
                  * To test, the resource found is defined below
-                 *//*
-                *//**
-                 * Se for o primeiro CFP, a pilha esta vazia, e a estrutura do historico tambem. Ai faz o que
-                 * esta em baixo.
-                 * Se nao for o primeiro CFP, nao e preciso ir buscar os recursos A BD nem fazer match
-                 * e so avaliar a proposta (comentarios), alterar ou nao, a proposta a fazer
-                 *
                  */
                 //Test: no resources available => doesnt respond to cfp/respond refuse?
                 updateRound();
@@ -101,38 +98,28 @@ public class SellerAgent extends Agent implements Serializable{
                  */
                 if(resourcesQueue == null && negotiationHistoric.isEmpty()) {
                     handleFirstCFP(cfp);
-                }/*
-                while(!resourcesQueue.isEmpty()){
-                    ArrayList<Resource> head = resourcesQueue.poll();
-                    for (Resource r: head)
-                        r.printResource();
-                }*/
+                }
                 else{
-                    ArrayList<Resource> queueHead;
-                    queueHead =  resourcesQueue.peek();
                     /**
-                     * Comments received in Reject, are applied to the proposal, price and availability may be updated
+                     * Comments received in Reject, may be applied to the proposal, price and availability may be updated
                      */
                     Proposal rejectedProposal = null;
                     try {
                         rejectedProposal = (Proposal) cfp.getContentObject();
                     } catch (UnreadableException e) {
-                        e.printStackTrace();
+                        logger.log(Level.SEVERE,"Could not get the message's content {0}",e);
                     }
                     System.out.println("rejected proposal = " +  rejectedProposal);
                     rejectedProposal.printComments();
+                    //Add proposal to historic
                     negotiationHistoric.put(round-1,rejectedProposal);
-                    proposal = new Proposal(40000F,queueHead, this.getAgent().getAID());
+                    proposal = applyCommentsToProposal(rejectedProposal);
                 }
                 if (!resourcesQueue.isEmpty()){
-                    System.out.println("!resourcesQueue.isEmpty()");
                     ACLMessage propose = cfp.createReply();
                     propose.setPerformative(ACLMessage.PROPOSE);
-                    System.out.println("Proposal antes de enviar " + proposal);
                     try {
-                        //Add proposal to historic
                         propose.setContentObject(proposal);
-                        System.out.println("ASASDSAD = " + proposal);
                     } catch (IOException e) {
                         logger.log(Level.SEVERE,"Could not set the message's content {0}",e);
                     }
@@ -153,15 +140,22 @@ public class SellerAgent extends Agent implements Serializable{
                 //Fetch funtion, writes to an ArrayList the resources available
                 solutions = getAvailableMatchingResources(askedResources);
                 System.out.println("SOLUTIONS SIZE = " + solutions.size());
+                for (ArrayList<Resource> r: solutions) {
+                    System.out.println("NO HABDLE FIRST CFP, SOLUTION: " + r);
+                }
                 putResourcesIntoQueue(solutions);
                 queueHead =  resourcesQueue.peek();
-                /**
-                 * Price here must be calculated, for example, in getAvailableMatchingResources
-                 */
-                proposal = new Proposal(40000F,queueHead, this.getAgent().getAID());
+                double displacementCosts = sumResourcesPrice(queueHead);
+                minimumPrice = displacementCosts + (displacementCosts*0.5);
+                maximumPrice = displacementCosts + (displacementCosts*2);
+                System.out.println("Costs: " + displacementCosts);
+                System.out.println("Minimum Price: " + minimumPrice);
+                System.out.println("Maximum Price: " + maximumPrice);
                 long worstAvailability = getWorstAvailability(queueHead);
-                proposal.setAvailability(worstAvailability);
-                proposal.setPrice(65000F);
+                proposal = new Proposal(maximumPrice,worstAvailability,queueHead, this.getAgent().getAID());
+                //proposal.setAvailability(worstAvailability);
+                System.out.println("Delay to minime = " + delay);
+                System.out.println("PRPOSING PROPOSAL AVAILABILITY = " + proposal.getAvailability());
                 negotiationHistoric.put(round,proposal);
 
                 return proposal;
@@ -186,29 +180,92 @@ public class SellerAgent extends Agent implements Serializable{
 
             @Override
             protected void handleRejectProposal(ACLMessage cfp, ACLMessage propose, ACLMessage reject) {
-                //Content == null => end?
-                logger.log(Level.INFO,"Agent {0}: Proposal rejected",getLocalName());
-                try {
-                    logger.log(Level.INFO,"Message received is {0}:",reject.getContentObject());
-                    proposal.setPriceComment(reject.getContentObject().toString());
-                } catch (UnreadableException e) {
-                    logger.log(Level.INFO,"Could not et message's content {0}",e);
-                }
-                updateRound();
-                logger.log(Level.INFO,"Round n(handle reject): {0}",round);
-                negotiationHistoric.put(round,proposal);
-                logger.log(Level.INFO,"Historic updated. It has now: ");
-                negotiationHistoric.get(round).printComments();
                 /**
-                 * Loads round-1 key form historic, updates proposal to the same parameters and
-                 * adds the comments received in the reject
-                 */
-                /**
-                 * Tenta negociar o primeiro recurso na stack/queue, se a utilidade descer demasiado (exemplo, ficar ao mesmo nivel da utilidade da proxima
-                 * posiçao da stack/queue) muda o recurso a ser negociado, isto e, o recurso no topo da stack/queue.
+                 * Ends this seller participation in the negotiation
                  */
             }
         } );
+    }
+
+    private Proposal applyCommentsToProposal(Proposal rejectedProposal) {
+        ArrayList<Resource> queueHead = resourcesQueue.poll();
+        System.out.println("(utilityCalculation(queueHead.getPrice())) " + (utilityCalculation(sumResourcesPrice(queueHead))));
+        double displacementCosts = sumResourcesPrice(queueHead);
+        double minPrice = displacementCosts + (displacementCosts*0.5);
+        double maxPrice = displacementCosts + (displacementCosts*2);
+        System.out.println("Costs in applyCommentsToProposal: " + displacementCosts);
+        System.out.println("Minimum Price in applyCommentsToProposal: " + minPrice);
+        System.out.println("Maximum Price in applyCommentsToProposal: " + maxPrice);
+        String priceComment = rejectedProposal.getPriceComment();
+        String availabilityComment = rejectedProposal.getAvailabilityComment();
+        switch (priceComment){
+            case OK:
+                System.out.println("OK received on price. Nothing to change");
+                break;
+            case LOWER:
+                System.out.println("LOWER received on price. Going to decrease a bit the price");
+                rejectedProposal.setPrice(rejectedProposal.getPrice()*0.85);
+                System.out.println("LOWER: New price = " + rejectedProposal.getPrice()*0.85);
+                break;
+            case MUCH_LOWER:
+                System.out.println("MUCH LOWER received on price. Going to decrease a lot the price");
+                rejectedProposal.setPrice(rejectedProposal.getPrice()*0.6);
+                System.out.println("LOWER: New price = " + rejectedProposal.getPrice()*0.6);
+                break;
+            default:
+                break;
+        }
+        switch (availabilityComment){
+            case OK:
+                System.out.println("OK received on availability. Nothing to change");
+                break;
+            case LOWER:
+                System.out.println("LOWER received on availability. Checking if it is possible to reduce");
+                //Something to check this
+                rejectedProposal.setAvailability((long) (rejectedProposal.getAvailability()*0.85));
+                System.out.println("LOWER: New availability = " + rejectedProposal.getAvailability()*0.85);
+                break;
+            case MUCH_LOWER:
+                System.out.println("MUCH LOWER received on availability. Checking if it is possible to reduce");
+                //Something to check this
+                rejectedProposal.setAvailability((long) (rejectedProposal.getAvailability()*0.6));
+                System.out.println("LOWER: New availability = " + rejectedProposal.getAvailability()*0.6);
+                break;
+            default:
+                break;
+        }
+        System.out.println("if(rejectedProposal.getPrice()/maxPrice "  + (rejectedProposal.getPrice()/maxPrice));
+        System.out.println("Availability = " + availabilityComment);
+        System.out.println("rejectedProposal.getPrice()/maxPrice <= 0.5 && availabilityComment.equals(OK) = "  +
+                (rejectedProposal.getPrice()/maxPrice <= 0.5 && availabilityComment.equals(OK)));
+        /*if(rejectedProposal.getPrice()/maxPrice <= 0.5 && availabilityComment.equals(OK)){
+            System.out.println("Deleting");
+            doDelete();
+        }*/
+//        else {
+            if (!resourcesQueue.isEmpty()) {
+                System.out.println("resourcesQueue.peek() " + resourcesQueue.peek());
+                if (hasBetterUtility(rejectedProposal, resourcesQueue.peek())) {
+                    resourcesQueue.add(queueHead);
+                    System.out.println("resourcesQueue.peek()2 " + resourcesQueue.peek());
+                }
+            }//remove this else, and implement a decent stop condition
+            else{
+                System.out.println("Queue is empty, the resource contained in queueHead is the lasts available option");
+            }
+
+//        }
+        proposal = new Proposal(rejectedProposal.getPrice(), rejectedProposal.getAvailability(), rejectedProposal.getResourcesProposed(), this.getAID());
+        return proposal;
+    }
+
+    private boolean hasBetterUtility(Proposal rejectedProposal, ArrayList<Resource> peek) {
+        System.out.println("rejectedProposal.getPrice() " + rejectedProposal.getPrice()/maximumPrice);
+        System.out.println("sumResourcesPrice(peek) " + sumResourcesPrice(peek)/maximumPrice);
+        System.out.println("(utilityCalculation(rejectedProposal.getPrice())) " + (utilityCalculation(rejectedProposal.getPrice())));
+        System.out.println("(utilityCalculation(sumResourcesPrice(peek))) " + (utilityCalculation(sumResourcesPrice(peek))));
+        System.out.println("(utilityCalculation(rejectedProposal.getPrice()) > (utilityCalculation(sumResourcesPrice(peek)))) " + (utilityCalculation(rejectedProposal.getPrice()) > (utilityCalculation(sumResourcesPrice(peek)))));
+        return (utilityCalculation(rejectedProposal.getPrice()) > (utilityCalculation(sumResourcesPrice(peek))));
     }
 
     private void updateRound() {
@@ -229,6 +286,14 @@ public class SellerAgent extends Agent implements Serializable{
         } catch (IOException e) {
             logger.log(Level.SEVERE,"Could not create Log File {0} " , e);
         }
+    }
+
+    public double sumResourcesPrice(ArrayList<Resource> resourcesToBeProposed){
+        double sum = 0;
+        for (Resource aResource:resourcesToBeProposed) {
+            sum += aResource.getPrice();
+        }
+        return sum;
     }
 
     /**
@@ -266,18 +331,33 @@ public class SellerAgent extends Agent implements Serializable{
          * Falta tambem ver se os recuros estao disponiveis na duraçao pretendida
          *
          */
+        /**
+         * The starting available date must be read too, so the resource availability  is
+         * ScheduledDeparture - what was read from DB
+         * and if that difference is < 0,
+         * compare it with delay (delay - that difference, because both are negative).
+         * if >0 means that the resource isnt good -1 - (-3) 2 => -3 is later than -1
+         * Ideal scenario, difference = delay
+         * Otherwise, the more negative the better.
+         */
         Resource r1  = new Aircraft("Boeing 777", 396);
-        r1.setAvailability(1500L);
-        Resource r2 = new CrewMember(2, "Pilot", "English A2");
-        r2.setAvailability(12900L);
+        r1.setPrice(23543.23D);
+        r1.setAvailability(0L);
+        Resource r2  = new Aircraft("Boeing 777", 396);
+        r2.setPrice(23543.23D);
+        r2.setAvailability(10000L);
         Resource r3 = new Aircraft("Boeing 767", 400);;
-        r3.setAvailability(1900L);
+        r3.setPrice(31423.89D);
+        r3.setAvailability(19000L);
         Resource r4 = new Aircraft("Airbus A330-200 Freighter", 407);
-        r4.setAvailability(900L);
-        Resource r5  = new Aircraft("Boeing 777", 396);
-        r5.setAvailability(1000L);
+        r4.setPrice(451123.51D);
+        r4.setAvailability(9000L);
+        Resource r5 = new CrewMember(2, "Pilot", "English A2");
+        r5.setPrice(5543.23D);
+        r5.setAvailability(129000L);
         Resource r6 = new CrewMember(2, "Pilot", "English A2");
-        r6.setAvailability(1150L);
+        r6.setPrice(65333.21D);
+        r6.setAvailability(11500L);
         availableResources.add(r1);
         availableResources.add(r2);
         availableResources.add(r3);
@@ -299,10 +379,6 @@ public class SellerAgent extends Agent implements Serializable{
                 }
             }
         }
-        /*for (ArrayList<Resource> r:allResourcesCombinations
-             ) {
-
-        }*/
         return allResourcesCombinations;
     }
 
@@ -340,6 +416,10 @@ public class SellerAgent extends Agent implements Serializable{
          * top is now the resource under negotiation
          */
         return resourcesQueue.peek();
+    }
+
+    private double utilityCalculation(double priceOffered) {
+        return((priceOffered - minimumPrice)/(maximumPrice-minimumPrice));
     }
 
     /**
