@@ -1,6 +1,7 @@
 package agents;
 
 import jade.core.Agent;
+import jade.core.behaviours.CyclicBehaviour;
 import jade.domain.FIPAAgentManagement.*;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.UnreadableException;
@@ -35,9 +36,7 @@ public class SellerAgent extends Agent implements Serializable{
     private PriorityQueue<ArrayList<Resource>> resourcesQueue = null;
     ArrayList<ArrayList<Resource>> solutions = new ArrayList<>();
     private Integer round = 0;
-    //Round - Proposal - Resources??
-    //Lista de litas com Ronda-Recurso-Proposta?
-    //HashMap<Ronda,Proposta>
+    //HashMap<round,proposal>
     private HashMap<Integer,Proposal> negotiationHistoric = new HashMap<>();
     /**
      * Price range between:
@@ -75,121 +74,151 @@ public class SellerAgent extends Agent implements Serializable{
         /*MessageTemplate template = MessageTemplate.and(
                 MessageTemplate.MatchProtocol(FIPANames.InteractionProtocol.FIPA_ITERATED_CONTRACT_NET),
                 MessageTemplate.MatchPerformative(ACLMessage.CFP));*/
-        ACLMessage cfp = blockingReceive();
-        addBehaviour(new SSIteratedContractNetResponder(this, cfp) {
 
+       // ACLMessage cfp = blockingReceive();
+        addBehaviour(new CyclicBehaviour() {
             @Override
-            protected ACLMessage handleCfp(ACLMessage cfp) throws NotUnderstoodException, RefuseException {
-                /**
-                 * Fetch Resources in DataBase
-                 * Compare Resource form message with DataBase Fetch results
-                 * Select the most similar Resource found in DataBase, to the one asked
-                 * Compare both Resources
-                 * Calculate utility and price and creates msg with resource's price and availability
-                 * To test, the resource found is defined below
-                 */
-                //Test: no resources available => doesnt respond to cfp/respond refuse?
-                updateRound();
-                logger.log(Level.INFO,"Agent {0}: CFP received from {1}. Action is {2} ",new Object[]{getLocalName(),cfp.getSender().getLocalName(),cfp.getContent()});
-                logger.log(Level.INFO,"Round n(upon receiving CFP: {0})", round);
-                /**
-                 * First Round means that sellers need to fetch for available resources in the DataBase
-                 * The first round is identified by having both, Resource's Queue and Negotiation Historic HashMap, empty
-                 */
-                if(resourcesQueue == null && negotiationHistoric.isEmpty()) {
-                    handleFirstCFP(cfp);
+            public void action() {
+                ACLMessage cfp = myAgent.receive();
+                if(cfp != null) {
+                    System.out.println("CFP = " + cfp.getPerformative());
+                    addBehaviour(new SSIteratedContractNetResponder(this.getAgent(), cfp) {
+                        @Override
+                        protected ACLMessage handleCfp(ACLMessage cfp) throws NotUnderstoodException, RefuseException {
+                            /**
+                             * Fetch Resources in DataBase
+                             * Compare Resource form message with DataBase Fetch results
+                             * Select the most similar Resource found in DataBase, to the one asked
+                             * Compare both Resources
+                             * Calculate utility and price and creates msg with resource's price and availability
+                             * To test, the resource found is defined below
+                             */
+                            //Test: no resources available => doesnt respond to cfp/respond refuse?
+                            updateRound();
+                            System.out.println("MESSAGE RECEIVED IS: " + cfp.getPerformative());
+                            logger.log(Level.INFO, "Agent {0}: CFP received from {1}. Action is {2} ", new Object[]{getLocalName(), cfp.getSender().getLocalName(), cfp.getContent()});
+                            logger.log(Level.INFO, "Round n(upon receiving CFP: {0})", round);
+                            /**
+                             * First Round means that sellers need to fetch for available resources in the DataBase
+                             * The first round is identified by having both, Resource's Queue and Negotiation Historic HashMap, empty
+                             */
+                            if (resourcesQueue == null && negotiationHistoric.isEmpty()) {
+                                handleFirstCFP(cfp);
+                                System.out.println("Isto retorna um proposal e ninguem diz nada?");
+                            } else {
+                                /**
+                                 * Comments received in Reject, may be applied to the proposal, price and availability may be updated
+                                 */
+                                Proposal rejectedProposal = null;
+                                try {
+                                    rejectedProposal = (Proposal) cfp.getContentObject();
+                                } catch (UnreadableException e) {
+                                    logger.log(Level.SEVERE, "Could not get the message's content {0}", e);
+                                }
+                                System.out.println("rejected proposal = " + rejectedProposal);
+                                rejectedProposal.printComments();
+                                //Add proposal to historic
+                                negotiationHistoric.put(round - 1, rejectedProposal);
+                                proposal = applyCommentsToProposal(rejectedProposal);
+                            }
+                            if (!resourcesQueue.isEmpty()) {
+                                System.out.println("!resourcesQueue.isEmpty() = " + !resourcesQueue.isEmpty());
+                                ACLMessage propose = cfp.createReply();
+                                propose.setPerformative(ACLMessage.PROPOSE);
+                                try {
+                                    System.out.println("Setting message content");
+                                    proposal.printProposal();
+                                    propose.setContentObject(proposal);
+                                } catch (IOException e) {
+                                    logger.log(Level.SEVERE, "Could not set the message's content {0}", e);
+                                }
+                                return propose;
+                            } else {
+                                // We refuse to provide a proposal
+                                logger.log(Level.INFO, "Agent {0}: Refuse", getLocalName());
+                                ACLMessage refuse = cfp.createReply();
+                                refuse.setPerformative(ACLMessage.REFUSE);
+                                try {
+                                    refuse.setContentObject("Refused. Bye");
+                                    resetNegotiationStructure();
+                                    negotiationHistoric = new HashMap<>();
+                                    return refuse;
+                                } catch (IOException e) {
+                                    logger.log(Level.SEVERE, "Could not set the message's content {0}", e);
+                                }
+                                throw new RefuseException("Can't lease the resources asked");
+                            }
+                        }
+
+                        private Proposal handleFirstCFP(ACLMessage cfp) {
+                            ArrayList<Resource> queueHead;
+                            ArrayList<Resource> askedResources = getMsgResources(cfp);
+                            logger.log(Level.INFO, "Agent {0}: Searching for resources to lease ", getLocalName());
+                            logger.log(Level.INFO, "Agent {0}: Proposing", getLocalName());
+                            //Fetch funtion, writes to an ArrayList the resources available
+                            solutions = getAvailableMatchingResources(askedResources);
+                            System.out.println("SOLUTIONS SIZE = " + solutions.size());
+                            for (ArrayList<Resource> r : solutions) {
+                                System.out.println("NO HABDLE FIRST CFP, SOLUTION: " + r);
+                            }
+                            putResourcesIntoQueue(solutions);
+                            queueHead = resourcesQueue.peek();
+                            double displacementCosts = sumResourcesPrice(queueHead);
+                            minimumPrice = displacementCosts + (displacementCosts * 0.5);
+                            maximumPrice = displacementCosts + (displacementCosts * 2);
+                            System.out.println("Costs: " + displacementCosts);
+                            System.out.println("Minimum Price: " + minimumPrice);
+                            System.out.println("Maximum Price: " + maximumPrice);
+                            long worstAvailability = getWorstAvailability(queueHead);
+                            proposal = new Proposal(maximumPrice, worstAvailability, queueHead, this.getAgent().getAID());
+                            //proposal.setAvailability(worstAvailability);
+                            System.out.println("Delay to minime = " + delay);
+                            System.out.println("PRPOSING PROPOSAL AVAILABILITY = " + proposal.getAvailability());
+                            negotiationHistoric.put(round, proposal);
+
+                            return proposal;
+                        }
+
+                        @Override
+                        protected void handleRejectProposal(ACLMessage cfp, ACLMessage propose, ACLMessage reject) {
+                            resetNegotiationStructure();
+                            /**
+                             * Ends this seller participation in the negotiation
+                             */
+                        }
+
+                        @Override
+                        protected ACLMessage handleAcceptProposal(ACLMessage cfp, ACLMessage propose, ACLMessage accept) throws FailureException {
+                            logger.log(Level.INFO, "Agent {0}: Proposal Accepted", getLocalName());
+                            updateRound();
+                            logger.log(Level.INFO, "Round n(handle accept proposal): {0}", round);
+                            if (true) { // contractualization
+                                logger.log(Level.INFO, "Agent {0}: Action successfully performed", getLocalName());
+                                ACLMessage inform = accept.createReply();
+                                inform.setPerformative(ACLMessage.INFORM);
+                                return inform;
+                            } else {
+                                logger.log(Level.INFO, "Agent {0}: Action execution failed", getLocalName());
+                                throw new FailureException("unexpected-error");
+                            }
+                        }
+                    });
                 }
                 else{
-                    /**
-                     * Comments received in Reject, may be applied to the proposal, price and availability may be updated
-                     */
-                    Proposal rejectedProposal = null;
-                    try {
-                        rejectedProposal = (Proposal) cfp.getContentObject();
-                    } catch (UnreadableException e) {
-                        logger.log(Level.SEVERE,"Could not get the message's content {0}",e);
-                    }
-                    System.out.println("rejected proposal = " +  rejectedProposal);
-                    rejectedProposal.printComments();
-                    //Add proposal to historic
-                    negotiationHistoric.put(round-1,rejectedProposal);
-                    proposal = applyCommentsToProposal(rejectedProposal);
-                }
-                if (!resourcesQueue.isEmpty()){
-                    ACLMessage propose = cfp.createReply();
-                    propose.setPerformative(ACLMessage.PROPOSE);
-                    try {
-                        propose.setContentObject(proposal);
-                    } catch (IOException e) {
-                        logger.log(Level.SEVERE,"Could not set the message's content {0}",e);
-                    }
-                    return propose;
-                }
-                else {
-                    // We refuse to provide a proposal
-                    logger.log(Level.INFO,"Agent {0}: Refuse",getLocalName());
-                    throw new RefuseException("Can't lease the resources asked");
+                    block();
                 }
             }
+        });}
 
-            private Proposal handleFirstCFP(ACLMessage cfp) {
-                ArrayList<Resource> queueHead;
-                ArrayList<Resource> askedResources = getMsgResources(cfp);
-                logger.log(Level.INFO,"Agent {0}: Searching for resources to lease ",getLocalName());
-                logger.log(Level.INFO,"Agent {0}: Proposing",getLocalName());
-                //Fetch funtion, writes to an ArrayList the resources available
-                solutions = getAvailableMatchingResources(askedResources);
-                System.out.println("SOLUTIONS SIZE = " + solutions.size());
-                for (ArrayList<Resource> r: solutions) {
-                    System.out.println("NO HABDLE FIRST CFP, SOLUTION: " + r);
-                }
-                putResourcesIntoQueue(solutions);
-                queueHead =  resourcesQueue.peek();
-                double displacementCosts = sumResourcesPrice(queueHead);
-                minimumPrice = displacementCosts + (displacementCosts*0.5);
-                maximumPrice = displacementCosts + (displacementCosts*2);
-                System.out.println("Costs: " + displacementCosts);
-                System.out.println("Minimum Price: " + minimumPrice);
-                System.out.println("Maximum Price: " + maximumPrice);
-                long worstAvailability = getWorstAvailability(queueHead);
-                proposal = new Proposal(maximumPrice,worstAvailability,queueHead, this.getAgent().getAID());
-                //proposal.setAvailability(worstAvailability);
-                System.out.println("Delay to minime = " + delay);
-                System.out.println("PRPOSING PROPOSAL AVAILABILITY = " + proposal.getAvailability());
-                negotiationHistoric.put(round,proposal);
 
-                return proposal;
-            }
-
-            @Override
-            protected ACLMessage handleAcceptProposal(ACLMessage cfp, ACLMessage propose,ACLMessage accept) throws FailureException {
-                logger.log(Level.INFO,"Agent {0}: Proposal Accepted",getLocalName());
-                updateRound();
-                logger.log(Level.INFO,"Round n(handle accept proposal): {0}",round);
-                if (true) { // contractualization
-                    logger.log(Level.INFO,"Agent {0}: Action successfully performed",getLocalName());
-                    ACLMessage inform = accept.createReply();
-                    inform.setPerformative(ACLMessage.INFORM);
-                    return inform;
-                }
-                else {
-                    logger.log(Level.INFO,"Agent {0}: Action execution failed",getLocalName());
-                    throw new FailureException("unexpected-error");
-                }
-            }
-
-            @Override
-            protected void handleRejectProposal(ACLMessage cfp, ACLMessage propose, ACLMessage reject) {
-                /**
-                 * Ends this seller participation in the negotiation
-                 */
-            }
-        } );
+    private void resetNegotiationStructure() {
+        resourcesQueue = null;
+        solutions = new ArrayList<>();
+        round = 0;
     }
 
     private Proposal applyCommentsToProposal(Proposal rejectedProposal) {
         ArrayList<Resource> queueHead = resourcesQueue.poll();
-        System.out.println("(utilityCalculation(queueHead.getPrice())) " + (utilityCalculation(sumResourcesPrice(queueHead))));
         double displacementCosts = sumResourcesPrice(queueHead);
         double minPrice = displacementCosts + (displacementCosts*0.5);
         double maxPrice = displacementCosts + (displacementCosts*2);
@@ -238,21 +267,14 @@ public class SellerAgent extends Agent implements Serializable{
         System.out.println("Availability = " + availabilityComment);
         System.out.println("rejectedProposal.getPrice()/maxPrice <= 0.5 && availabilityComment.equals(OK) = "  +
                 (rejectedProposal.getPrice()/maxPrice <= 0.5 && availabilityComment.equals(OK)));
-        /*if(rejectedProposal.getPrice()/maxPrice <= 0.5 && availabilityComment.equals(OK)){
-            System.out.println("Deleting");
-            doDelete();
-        }*/
-//        else {
-            if (!resourcesQueue.isEmpty()) {
-                System.out.println("resourcesQueue.peek() " + resourcesQueue.peek());
-                if (hasBetterUtility(rejectedProposal, resourcesQueue.peek())) {
-                    resourcesQueue.add(queueHead);
-                    System.out.println("resourcesQueue.peek()2 " + resourcesQueue.peek());
-                }
-            }//remove this else, and implement a decent stop condition
-            else{
-                System.out.println("Queue is empty, the resource contained in queueHead is the lasts available option");
+        if (!resourcesQueue.isEmpty()) {
+            if (hasBetterUtility(rejectedProposal, resourcesQueue.peek())) {
+                resourcesQueue.add(queueHead);
             }
+        }//remove this else, and implement a decent stop condition
+        else{
+            System.out.println("Queue is empty, the resource contained in queueHead is the lasts available option");
+        }
 
 //        }
         proposal = new Proposal(rejectedProposal.getPrice(), rejectedProposal.getAvailability(), rejectedProposal.getResourcesProposed(), this.getAID());

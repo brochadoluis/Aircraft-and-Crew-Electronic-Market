@@ -2,8 +2,10 @@ package agents;
 
 import jade.core.AID;
 import jade.core.Agent;
+import jade.domain.DFService;
 import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.domain.FIPAAgentManagement.ServiceDescription;
+import jade.domain.FIPAException;
 import jade.domain.FIPANames;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.UnreadableException;
@@ -22,12 +24,13 @@ import java.util.logging.SimpleFormatter;
 
 import hirondelle.date4j.*;
 
+import static com.sun.org.apache.xml.internal.serializer.utils.Utils.messages;
 
 
 /**
  * Created by Luis on 20/02/2017.
  */
-public class BuyerAgent extends Agent implements Serializable{
+public class BuyerAgent extends Agent implements Serializable {
     private final String LOWER = "LOWER";
     private final String MUCH_LOWER = "MUCH LOWER";
     private final String OK = "OK";
@@ -66,28 +69,35 @@ public class BuyerAgent extends Agent implements Serializable{
             DFAgentDescription dfd = new DFAgentDescription();
             // Fill the CFP message
             ACLMessage msg = sendFirstCFP();
-            addBehaviour(new ContractNetInitiator(this, msg){
+            addBehaviour(new ContractNetInitiator(this, msg) {
                 @Override
                 protected void handlePropose(ACLMessage propose, Vector v) {
                     try {
-                        logger.log(Level.INFO,"Agent{0}, proposed {1}", new Object[]{propose.getSender().getName(),propose.getContentObject()});
-                        logger.log(Level.INFO,"Round n (Handle Propose): {0}", round);
+                        logger.log(Level.INFO, "Agent{0}, proposed {1}", new Object[]{propose.getSender().getName(), propose.getContentObject()});
+                        logger.log(Level.INFO, "Round n (Handle Propose): {0}", round);
                     } catch (UnreadableException e) {
-                        logger.log(Level.SEVERE,"Could not get message's content: {0} ", e);
+                        logger.log(Level.SEVERE, "Could not get message's content: {0} ", e);
                     }
                 }
 
                 @Override
                 protected void handleRefuse(ACLMessage refuse) {
-                    logger.log(Level.INFO,"Agent{0}, refused ",refuse.getSender().getName());
-                    logger.log(Level.INFO,"Round n (Handle Refuse): {0}", round);
-                    for(int i = 0; i < sellers.size(); i++){
-                        if(sellers.get(i).getName().equals(refuse.getSender().getName())){
+                    logger.log(Level.INFO, "Agent{0}, refused ", refuse.getSender().getName());
+                    logger.log(Level.INFO, "Round n (Handle Refuse): {0}", round);
+                    for (int i = 0; i < sellers.size(); i++) {
+                        if (sellers.get(i).getName().equals(refuse.getSender().getName())) {
                             System.out.println("Seller Removed " + sellers.get(i).getName());
                             sellers.remove(i);
                             negotiationParticipants--;
                         }
                     }
+                    System.out.println("Negotiation Participants = " + negotiationParticipants);
+                    if (negotiationParticipants == 0) {
+                        System.out.println("TakeDown");
+                        takeDown(this.getAgent());
+                        //doDelete();
+                    }
+
                     /**
                      * Removes seller from receivers, and removes his response from responses vector
                      */
@@ -97,10 +107,9 @@ public class BuyerAgent extends Agent implements Serializable{
                     if (failure.getSender().equals(agent.getAMS())) {
                         // FAILURE notification from the JADE runtime: the receiver
                         // does not exist
-                        logger.log(Level.WARNING,"Responder does not exists");
-                    }
-                    else {
-                        logger.log(Level.INFO,"Agent{0} failed", failure.getSender().getName());
+                        logger.log(Level.WARNING, "Responder does not exists");
+                    } else {
+                        logger.log(Level.INFO, "Agent{0} failed", failure.getSender().getName());
                     }
                     // Immediate failure --> we will not receive a response from this agent
                     negotiationParticipants--;
@@ -110,7 +119,7 @@ public class BuyerAgent extends Agent implements Serializable{
                 protected void handleAllResponses(Vector responses, Vector acceptances) {
                     if (responses.size() < negotiationParticipants) {
                         // Some responder didn't reply within the specified timeout
-                        logger.log(Level.INFO,"Timeout expired: missing {0} responses", negotiationParticipants-responses.size());
+                        logger.log(Level.INFO, "Timeout expired: missing {0} responses", negotiationParticipants - responses.size());
                     }
                     // Evaluate proposals.
                     AID bestProposer = null;
@@ -126,6 +135,13 @@ public class BuyerAgent extends Agent implements Serializable{
                             evaluateProposal(proposal);
                             System.out.println("Proposal Availability= " + proposal.getAvailability());
                             //function here, this mus be outside the loop
+                            if (round == 3) {
+                                bestProposer = bestProposalQ.peek().getSender();
+                                accept = reply;
+                                logger.log(Level.INFO, "Best proposal is: ");
+                                System.out.println("ProposalQ empty? " );
+                                bestProposalQ.peek().printProposal();
+                            }
                             /*if (!bestProposalQ.isEmpty()) {
                                 bestProposalQ.peek().getSender();
 //                                bestProposer = msg.getSender();
@@ -134,25 +150,34 @@ public class BuyerAgent extends Agent implements Serializable{
                                 bestProposalQ.peek().printProposal();
                             }*/
                         }
-                        if(msg.getPerformative() == ACLMessage.REFUSE){
+                        if (msg.getPerformative() == ACLMessage.REFUSE) {
                             responses.remove(msg);
-                            System.out.println("REMOVING MSG = " + msg.getContent() );
-                            System.out.println("REMOVING MSG_PERFORMATIVE = " + msg.getPerformative() );
+                            System.out.println("REMOVING MSG = " + msg.getContent());
+                            System.out.println("REMOVING MSG_PERFORMATIVE = " + msg.getPerformative());
                         }
                     }
-                    setProposalsFeedback(responses, acceptances);
+
                     // Accept the proposal of the best proposer
                     if (accept != null) {
-                        logger.log(Level.INFO,"Accepting proposal {0}, from responder {1}", new Object[]{bestProposalQ.toString(),bestProposer.getName()});
-                        accept.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
+                        //sets one to accept and all others to refuse
+                        logger.log(Level.INFO, "Accepting proposal {0}, from responder {1}", new Object[]{bestProposalQ.peek().toString(), bestProposer.getName()});
+                        //accept.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
+                        System.out.println("bestProposer " + bestProposer);
+                        setLastAcceptances(responses, acceptances, bestProposer);
+                        for (Object o:acceptances) {
+                            System.out.println("Acceptance = " + o);
+                        }
+                        newIteration(acceptances);
                         updateRound();
-                        logger.log(Level.INFO,"Round n (After Accept): {1}", round);
+                        logger.log(Level.INFO, "Round n (After Accept): {0} ", round);
                     }
                     //accept == null => send another cfp
-                    else{
+                    else {
                         //Para cada resposta, fazer reply com CFP
-                        logger.log(Level.SEVERE,"Preparing another CFP");
-                        logger.log(Level.SEVERE,"new iteration");
+                        logger.log(Level.SEVERE, "Setting proposals feedback");
+                        setProposalsFeedback(responses, acceptances);
+                        logger.log(Level.SEVERE, "Preparing another CFP");
+                        logger.log(Level.SEVERE, "new iteration");
                         newIteration(acceptances);
                         updateRound();
                     }
@@ -161,25 +186,62 @@ public class BuyerAgent extends Agent implements Serializable{
 
                 @Override
                 protected void handleInform(ACLMessage inform) {
-                    logger.log(Level.SEVERE,"Agent {0} successfully performed the requested action", inform.getSender().getName());
-                    logger.log(Level.INFO,"Round n (Handle Inform): {0}", round);
+                    logger.log(Level.SEVERE, "Agent {0} successfully performed the requested action", inform.getSender().getName());
+                    logger.log(Level.INFO, "Round n (Handle Inform): {0}", round);
                 }
             });
-        }
-        else {
+        } else {
             logger.log(Level.SEVERE, "Invalid number of arguments or arguments are null");
         }
     }
 
+    private void setLastAcceptances(Vector responses, Vector acceptances, AID bestProposer) {
+        acceptances.removeAllElements();
+        for(int i = 0; i < responses.size(); i++){
+            ACLMessage response = (ACLMessage) responses.get(i);
+
+            System.out.println("Best Proposer; " + bestProposer);
+            System.out.println("responce.gertSender: " + response.getSender());
+            if(response.getSender().equals(bestProposer)){
+                ACLMessage accept = new ACLMessage(ACLMessage.ACCEPT_PROPOSAL);
+                accept.setProtocol(FIPANames.InteractionProtocol.FIPA_ITERATED_CONTRACT_NET);
+                accept.addReceiver(bestProposer);
+                accept.setReplyByDate(new Date(System.currentTimeMillis() + 10000));
+                try {
+                    accept.setContentObject(response.getContentObject());
+                } catch (IOException e) {
+                    logger.log(Level.SEVERE, "Could not set message's content: {0} ", e);
+                } catch (UnreadableException e) {
+                    logger.log(Level.SEVERE, "Could not get message's content: {0} ", e);
+                }
+                acceptances.add(accept);
+            }
+            else{
+                ACLMessage reject = new ACLMessage(ACLMessage.REJECT_PROPOSAL);
+                reject.setProtocol(FIPANames.InteractionProtocol.FIPA_ITERATED_CONTRACT_NET);
+                reject.addReceiver(response.getSender());
+                reject.setReplyByDate(new Date(System.currentTimeMillis() + 10000));
+                try {
+                    reject.setContentObject(response.getContentObject());
+                } catch (IOException e) {
+                    logger.log(Level.SEVERE, "Could not set message's content: {0} ", e);
+                } catch (UnreadableException e) {
+                    logger.log(Level.SEVERE, "Could not get message's content: {0} ", e);
+                }
+                acceptances.add(reject);
+            }
+        }
+    }
+
     private ACLMessage sendFirstCFP() {
-        logger.log(Level.INFO,"Round n (Before first CFP): {0}", round);
-        Proposal cfp = new Proposal(0F,1L,resourcesMissing, this.getAID());
+        logger.log(Level.INFO, "Round n (Before first CFP): {0}", round);
+        Proposal cfp = new Proposal(0F, 1L, resourcesMissing, this.getAID());
         cfp.setScheduledDeparture(1489053600000L);
         long maxDelay = getMaxDelay(resourcesMissing);
         cfp.setDelay(maxDelay);
         cfp.setDuration(durationInMilli);
         ACLMessage msg = new ACLMessage(ACLMessage.CFP);
-        for (AID seller:sellers) {
+        for (AID seller : sellers) {
             msg.addReceiver(seller);
         }
         msg.setProtocol(FIPANames.InteractionProtocol.FIPA_ITERATED_CONTRACT_NET);
@@ -189,7 +251,7 @@ public class BuyerAgent extends Agent implements Serializable{
             msg.setContentObject(cfp);
             updateRound();
         } catch (IOException e) {
-            logger.log(Level.SEVERE,"Could not set message's content: {0} ", e);
+            logger.log(Level.SEVERE, "Could not set message's content: {0} ", e);
         }
         return msg;
     }
@@ -199,7 +261,7 @@ public class BuyerAgent extends Agent implements Serializable{
     }
 
     private void setProposalsFeedback(Vector responses, Vector acceptances) {
-        for(int i = 0; i < responses.size(); i++){
+        for (int i = 0; i < responses.size(); i++) {
             ACLMessage msgReceived = (ACLMessage) responses.get(i);
             Proposal response;
             try {
@@ -207,20 +269,18 @@ public class BuyerAgent extends Agent implements Serializable{
                 ACLMessage msgToSend = (ACLMessage) acceptances.get(i);
                 double proposedPrice = response.getPrice();
                 long proposedAvailability = response.getAvailability();
-                Proposal proposalWithComments = new Proposal(proposedPrice, proposedAvailability,response.getResourcesProposed(),response.getSender());
-                if(proposedPrice/bestProposalQ.peek().getPrice() >= 5){
+                Proposal proposalWithComments = new Proposal(proposedPrice, proposedAvailability, response.getResourcesProposed(), response.getSender());
+                if (proposedPrice / bestProposalQ.peek().getPrice() >= 5) {
                     proposalWithComments.setPriceComment(MUCH_LOWER);
                     System.out.println("Comment Price set to MUCH LOWER");
-                }
-                else if(proposedPrice/bestProposalQ.peek().getPrice() < 5){
+                } else if (proposedPrice / bestProposalQ.peek().getPrice() < 5) {
                     proposalWithComments.setPriceComment(LOWER);
                     System.out.println("Comment Price set to LOWER");
-                }
-                else if(proposedPrice/bestProposalQ.peek().getPrice() <= 1){
+                } else if (proposedPrice / bestProposalQ.peek().getPrice() <= 1) {
                     proposalWithComments.setPriceComment(OK);
                     System.out.println("Comment Price set to OK");
                 }
-                if(bestProposalQ.peek().getAvailability() != 0) {
+                if (bestProposalQ.peek().getAvailability() != 0) {
                     if (proposedAvailability / bestProposalQ.peek().getAvailability() >= 5) {
                         proposalWithComments.setAvailabilityComment(MUCH_LOWER);
                         System.out.println("Comment Availability set to MUCH LOWER");
@@ -232,15 +292,14 @@ public class BuyerAgent extends Agent implements Serializable{
                         proposalWithComments.setAvailabilityComment(OK);
                         System.out.println("Comment Availability set to OK");
                     }
-                }
-                else
+                } else
                     proposalWithComments.setAvailabilityComment(OK);
                 System.out.println("Available = " + proposedAvailability + " with comment: " + proposalWithComments.getAvailabilityComment());
                 msgToSend.setContentObject(proposalWithComments);
             } catch (UnreadableException e) {
-                logger.log(Level.SEVERE,"Could not get message's content: {0} ", e);
+                logger.log(Level.SEVERE, "Could not get message's content: {0} ", e);
             } catch (IOException e) {
-                logger.log(Level.SEVERE,"Could not set message's content: {0} ", e);
+                logger.log(Level.SEVERE, "Could not set message's content: {0} ", e);
             }
         }
     }
@@ -251,7 +310,7 @@ public class BuyerAgent extends Agent implements Serializable{
             p = (Proposal) msg.getContentObject();
             return p;
         } catch (UnreadableException e) {
-            logger.log(Level.SEVERE,"Could not get message's content {0}", e);
+            logger.log(Level.SEVERE, "Could not get message's content {0}", e);
         }
         return null;
     }
@@ -267,7 +326,7 @@ public class BuyerAgent extends Agent implements Serializable{
             logger.addHandler(fh);
 
         } catch (IOException e) {
-            logger.log(Level.SEVERE,"Could not create Log File {0} " , e);
+            logger.log(Level.SEVERE, "Could not create Log File {0} ", e);
         }
     }
 
@@ -279,23 +338,22 @@ public class BuyerAgent extends Agent implements Serializable{
      * @return true if all resources match, false otherwise
      */
     private void evaluateProposal(Proposal proposal) {
-        logger.log(Level.CONFIG," Proposal ");
+        logger.log(Level.CONFIG, " Proposal ");
         proposal.printProposal();
         double priceOffered = proposal.getPrice();
         long availabilityOffered = proposal.getAvailability();
-        double utility = utilityCalculation(priceOffered,availabilityOffered);
+        double utility = utilityCalculation(priceOffered, availabilityOffered);
         System.out.println("priceOffered = " + priceOffered);
         System.out.println("availabilityOffered = " + availabilityOffered);
-        System.out.println("1 - priceOffered/maximumDisruptionCost = " + (1 - priceOffered/maximumDisruptionCost));
+        System.out.println("1 - priceOffered/maximumDisruptionCost = " + (1 - priceOffered / maximumDisruptionCost));
         System.out.println("utility = " + utility);
-        if(bestProposalQ.isEmpty()){
+        if (bestProposalQ.isEmpty()) {
             bestProposalQ.add(proposal);
             System.out.println("Best proposal was null");
-        }
-        else{
+        } else {
             double bestProposalUtility;
-            bestProposalUtility = utilityCalculation(bestProposalQ.peek().getPrice(),bestProposalQ.peek().getAvailability());
-            if(utility > bestProposalUtility){
+            bestProposalUtility = utilityCalculation(bestProposalQ.peek().getPrice(), bestProposalQ.peek().getAvailability());
+            if (utility > bestProposalUtility) {
                 bestProposalQ.poll();
                 bestProposalQ.add(proposal);
             }
@@ -315,8 +373,8 @@ public class BuyerAgent extends Agent implements Serializable{
 
     private long getMaxDelay(ArrayList<Resource> resources) {
         long maxDelay = -1;
-        if(resources.get(0).getDelay() != null) {
-            maxDelay= resources.get(0).getDelay();
+        if (resources.get(0).getDelay() != null) {
+            maxDelay = resources.get(0).getDelay();
             for (int i = 0; i < resources.size(); i++) {
                 Resource aResource = resources.get(i);
                 maxDelay = aResource.getDelay();
@@ -330,25 +388,25 @@ public class BuyerAgent extends Agent implements Serializable{
 
     private double utilityCalculation(double priceOffered, long availabilityOffered) {
         long proposedDeparture = scheduledDepartureMilli + availabilityOffered;
-        
-        return  ((((double)scheduledDepartureMilli /  proposedDeparture) + (1 - (priceOffered/maximumDisruptionCost)))/2);
+
+        return ((((double) scheduledDepartureMilli / proposedDeparture) + (1 - (priceOffered / maximumDisruptionCost))) / 2);
 
     }
 
     private void findReceivers(DFServices dfs) {
         /* Saves to an ArrayList all other agents registered in DFService  */
         sellers = dfs.searchDF(this);
-        logger.log(Level.INFO," Sellers: ");
-        for (AID seller:sellers) {
-            logger.log(Level.INFO," {0}, ", seller.getLocalName());
+        logger.log(Level.INFO, " Sellers: ");
+        for (AID seller : sellers) {
+            logger.log(Level.INFO, " {0}, ", seller.getLocalName());
         }
     }
 
     private DFServices registerInDFS() {
         DFAgentDescription dfd = new DFAgentDescription();
         DFServices dfs = new DFServices();
-        ServiceDescription sd  = new ServiceDescription();
-        sd.setName( getLocalName() );
+        ServiceDescription sd = new ServiceDescription();
+        sd.setName(getLocalName());
         //sd.addProperties(new Property("country", "Italy"));
         dfd = dfs.register(this);
         return dfs;
@@ -370,9 +428,19 @@ public class BuyerAgent extends Agent implements Serializable{
         Resource a1 = new Aircraft("Boeing 777", 396);
         Resource cm1 = new CrewMember(2, "Pilot", "English A2");
         a1.setDelay(delayToMinimizeInMilli);
-        cm1.setDelay(delayToMinimizeInMilli+360000);
+        cm1.setDelay(delayToMinimizeInMilli + 360000);
         resourcesMissing.add(a1);
         resourcesMissing.add(cm1);
 
+    }
+
+    private void takeDown(Agent a) {
+        System.out.println("Deregister " + a.getLocalName() + " from DFS. Bye...");
+        // Deregister from the yellow pages
+        try {
+            DFService.deregister(a);
+        } catch (FIPAException fe) {
+            fe.printStackTrace();
+        }
     }
 }
