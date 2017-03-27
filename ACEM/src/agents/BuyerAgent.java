@@ -192,7 +192,7 @@ public class BuyerAgent extends Agent implements Serializable {
                 protected void handleInform(ACLMessage inform) {
                     logger.log(Level.SEVERE, "Agent {0} successfully performed the requested action", inform.getSender().getName());
                     logger.log(Level.INFO, "Round n (Handle Inform): {0}", round);
-                    doDelete();
+                    takeDown();
                 }
             });
         } else {
