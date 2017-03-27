@@ -95,7 +95,7 @@ public class BuyerAgent extends Agent implements Serializable {
                     if (negotiationParticipants == 0) {
                         System.out.println("TakeDown");
                         takeDown(this.getAgent());
-                        //doDelete();
+                        doDelete();
                     }
 
                     /**
@@ -145,7 +145,7 @@ public class BuyerAgent extends Agent implements Serializable {
                             /*if (!bestProposalQ.isEmpty()) {
                                 bestProposalQ.peek().getSender();
 //                                bestProposer = msg.getSender();
-                                accept = reply;
+//                                accept = reply;
                                 logger.log(Level.INFO, "Best proposal is: ");
                                 bestProposalQ.peek().printProposal();
                             }*/
@@ -154,21 +154,23 @@ public class BuyerAgent extends Agent implements Serializable {
                             responses.remove(msg);
                             System.out.println("REMOVING MSG = " + msg.getContent());
                             System.out.println("REMOVING MSG_PERFORMATIVE = " + msg.getPerformative());
+                            System.out.println("Portanto o length dos sellers e: " + sellers.size());
                         }
                     }
-
+                    System.out.println("Accept != null " + (accept != null));
                     // Accept the proposal of the best proposer
                     if (accept != null) {
                         //sets one to accept and all others to refuse
                         logger.log(Level.INFO, "Accepting proposal {0}, from responder {1}", new Object[]{bestProposalQ.peek().toString(), bestProposer.getName()});
-                        //accept.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
+                        accept.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
                         System.out.println("bestProposer " + bestProposer);
-                        setLastAcceptances(responses, acceptances, bestProposer);
+                        //setLastAcceptances(responses, acceptances, bestProposer);
+                        acceptances.add(accept);
                         for (Object o:acceptances) {
                             System.out.println("Acceptance = " + o);
                         }
-                        newIteration(acceptances);
-                        updateRound();
+//                        newIteration(acceptances);
+//                        updateRound();
                         logger.log(Level.INFO, "Round n (After Accept): {0} ", round);
                     }
                     //accept == null => send another cfp
@@ -179,15 +181,18 @@ public class BuyerAgent extends Agent implements Serializable {
                         logger.log(Level.SEVERE, "Preparing another CFP");
                         logger.log(Level.SEVERE, "new iteration");
                         newIteration(acceptances);
-                        updateRound();
+//                        updateRound();
                     }
-
+//                    logger.log(Level.SEVERE, "new iteration");
+//                    newIteration(acceptances);
+                    updateRound();
                 }
 
                 @Override
                 protected void handleInform(ACLMessage inform) {
                     logger.log(Level.SEVERE, "Agent {0} successfully performed the requested action", inform.getSender().getName());
                     logger.log(Level.INFO, "Round n (Handle Inform): {0}", round);
+                    doDelete();
                 }
             });
         } else {
@@ -202,11 +207,10 @@ public class BuyerAgent extends Agent implements Serializable {
 
             System.out.println("Best Proposer; " + bestProposer);
             System.out.println("responce.gertSender: " + response.getSender());
+            //Fazer createReply das msgs a entrar no array acceptances, accept = response.createReply()
             if(response.getSender().equals(bestProposer)){
-                ACLMessage accept = new ACLMessage(ACLMessage.ACCEPT_PROPOSAL);
-                accept.setProtocol(FIPANames.InteractionProtocol.FIPA_ITERATED_CONTRACT_NET);
-                accept.addReceiver(bestProposer);
-                accept.setReplyByDate(new Date(System.currentTimeMillis() + 10000));
+                ACLMessage accept = response.createReply();
+                accept.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
                 try {
                     accept.setContentObject(response.getContentObject());
                 } catch (IOException e) {
@@ -217,10 +221,8 @@ public class BuyerAgent extends Agent implements Serializable {
                 acceptances.add(accept);
             }
             else{
-                ACLMessage reject = new ACLMessage(ACLMessage.REJECT_PROPOSAL);
-                reject.setProtocol(FIPANames.InteractionProtocol.FIPA_ITERATED_CONTRACT_NET);
-                reject.addReceiver(response.getSender());
-                reject.setReplyByDate(new Date(System.currentTimeMillis() + 10000));
+                ACLMessage reject = response.createReply();
+                reject.setPerformative(ACLMessage.REJECT_PROPOSAL);
                 try {
                     reject.setContentObject(response.getContentObject());
                 } catch (IOException e) {
@@ -338,7 +340,9 @@ public class BuyerAgent extends Agent implements Serializable {
      * @return true if all resources match, false otherwise
      */
     private void evaluateProposal(Proposal proposal) {
-        logger.log(Level.CONFIG, " Proposal ");
+        logger.log(Level.SEVERE, " Proposal ");
+        logger.log(Level.INFO, "Agent {2} send {0} price and {1} availability ", new Object[]{proposal.getPrice(), proposal.getAvailability(), proposal.getSender()});
+        System.out.println("Printing proposal in evaluate");
         proposal.printProposal();
         double priceOffered = proposal.getPrice();
         long availabilityOffered = proposal.getAvailability();
