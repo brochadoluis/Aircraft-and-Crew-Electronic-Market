@@ -2,6 +2,7 @@ package agents;
 
 import utils.Resource;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
 
@@ -12,8 +13,9 @@ import java.util.Comparator;
 /**
  *  Nao sera um comparator de double? Visto que a utilidade sera um double
  */
-public class UtilityComparator implements Comparator<ArrayList<Resource>> {
+public class PriceComparator implements Comparator<ArrayList<Resource>> {
     private SellerAgent sa = new SellerAgent();
+
     @Override
     public int compare(ArrayList<Resource> resources1, ArrayList<Resource> resources2) {
         double r1TotalPrice, r2TotalPrice;

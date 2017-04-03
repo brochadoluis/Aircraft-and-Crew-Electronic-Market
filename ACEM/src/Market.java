@@ -54,7 +54,7 @@ public class Market {
           //      "agents.BuyerAgent", new Object[0]);
 
         seller1.start();
-        //seller2.start();
+//        seller2.start();
         //seller3.start();
         //seller4.start();
         //seller5.start();

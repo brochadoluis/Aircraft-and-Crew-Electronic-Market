@@ -12,7 +12,10 @@ import java.util.List;
  */
 public class Proposal implements Serializable {
     private double price;
-    private long availability, scheduledDeparture, delay, duration;
+    private long availability;
+    private long scheduledDeparture;
+    private long delay;
+    private long duration;
     /**
      * private Date availability; ou Integer, em que 0 significa que cumpre o horario, mesmo que seja com antecedência,
      * ou seja, nao importa se entrega antes de tempo, importa que o voo sera cumprido sem atraso
@@ -117,5 +120,9 @@ public class Proposal implements Serializable {
 
     public void printComments(){
         System.out.println("Comment on price = " + this.priceComment +", and comment on availability = " + this.availabilityComment);
+    }
+
+    public String toString(){
+        return "< " + this.getPriceComment() + " , " + this.getAvailabilityComment() +" > " ;
     }
 }

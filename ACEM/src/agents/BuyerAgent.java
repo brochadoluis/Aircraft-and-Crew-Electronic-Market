@@ -1,5 +1,7 @@
 package agents;
 
+
+import hirondelle.date4j.DateTime;
 import jade.core.AID;
 import jade.core.Agent;
 import jade.domain.DFService;
@@ -13,18 +15,13 @@ import jade.proto.ContractNetInitiator;
 import jade.util.Logger;
 import utils.Aircraft;
 import utils.CrewMember;
+import utils.Log;
 import utils.Resource;
 
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.*;
-import java.util.logging.FileHandler;
 import java.util.logging.Level;
-import java.util.logging.SimpleFormatter;
-
-import hirondelle.date4j.*;
-
-import static com.sun.org.apache.xml.internal.serializer.utils.Utils.messages;
 
 
 /**
@@ -35,15 +32,22 @@ public class BuyerAgent extends Agent implements Serializable {
     private final String MUCH_LOWER = "MUCH LOWER";
     private final String OK = "OK";
     private final Logger logger = jade.util.Logger.getMyLogger(this.getClass().getName());
-    private PriorityQueue<Proposal> bestProposalQ = new PriorityQueue<>();
+    private Log log;
+    private Proposal bestProposal = null;
     private ArrayList<Resource> resourcesMissing = new ArrayList<>();
     private double maximumDisruptionCost;
-    private DateTime scheduledDeparture, flightDuration, flightDelay;
+    private DateTime scheduledDeparture;
+    private DateTime flightDuration;
+    private DateTime flightDelay;
     private String company = "";
     private ArrayList<AID> sellers = new ArrayList<>();
     private int negotiationParticipants;
     private Integer round = 0;
-    private long scheduledDepartureMilli, flightDurationMilli, flightDelayMilli, durationInMilli, delayToMinimizeInMilli;
+    private long scheduledDepartureMilli;
+    private long flightDurationMilli;
+    private long flightDelayMilli;
+    private long durationInMilli;
+    private long delayToMinimizeInMilli;
     private Proposal proposal;
 //    private final String role = "Buyer";
 
@@ -86,14 +90,12 @@ public class BuyerAgent extends Agent implements Serializable {
                     logger.log(Level.INFO, "Round n (Handle Refuse): {0}", round);
                     for (int i = 0; i < sellers.size(); i++) {
                         if (sellers.get(i).getName().equals(refuse.getSender().getName())) {
-                            System.out.println("Seller Removed " + sellers.get(i).getName());
                             sellers.remove(i);
                             negotiationParticipants--;
                         }
                     }
-                    System.out.println("Negotiation Participants = " + negotiationParticipants);
                     if (negotiationParticipants == 0) {
-                        System.out.println("TakeDown");
+                        logger.log(Level.INFO, "TakeDown ");
                         takeDown(this.getAgent());
                         doDelete();
                     }
@@ -133,44 +135,23 @@ public class BuyerAgent extends Agent implements Serializable {
                             acceptances.addElement(reply);
                             proposal = retrieveProposalContent(msg);
                             evaluateProposal(proposal);
-                            System.out.println("Proposal Availability= " + proposal.getAvailability());
-                            //function here, this mus be outside the loop
-                            if (round == 3) {
-                                bestProposer = bestProposalQ.peek().getSender();
+                            if (round == 7) {
+                                bestProposer = msg.getSender();
                                 accept = reply;
                                 logger.log(Level.INFO, "Best proposal is: ");
-                                System.out.println("ProposalQ empty? " );
-                                bestProposalQ.peek().printProposal();
+                                bestProposal.printProposal();
                             }
-                            /*if (!bestProposalQ.isEmpty()) {
-                                bestProposalQ.peek().getSender();
-//                                bestProposer = msg.getSender();
-//                                accept = reply;
-                                logger.log(Level.INFO, "Best proposal is: ");
-                                bestProposalQ.peek().printProposal();
-                            }*/
                         }
                         if (msg.getPerformative() == ACLMessage.REFUSE) {
                             responses.remove(msg);
-                            System.out.println("REMOVING MSG = " + msg.getContent());
-                            System.out.println("REMOVING MSG_PERFORMATIVE = " + msg.getPerformative());
-                            System.out.println("Portanto o length dos sellers e: " + sellers.size());
                         }
                     }
-                    System.out.println("Accept != null " + (accept != null));
                     // Accept the proposal of the best proposer
                     if (accept != null) {
                         //sets one to accept and all others to refuse
-                        logger.log(Level.INFO, "Accepting proposal {0}, from responder {1}", new Object[]{bestProposalQ.peek().toString(), bestProposer.getName()});
+                        logger.log(Level.INFO, "Accepting proposal {0}, from responder {1}", new Object[]{bestProposal.toString(), bestProposer.getName()});
                         accept.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
-                        System.out.println("bestProposer " + bestProposer);
-                        //setLastAcceptances(responses, acceptances, bestProposer);
-                        acceptances.add(accept);
-                        for (Object o:acceptances) {
-                            System.out.println("Acceptance = " + o);
-                        }
-//                        newIteration(acceptances);
-//                        updateRound();
+                        setRefuses(acceptances);
                         logger.log(Level.INFO, "Round n (After Accept): {0} ", round);
                     }
                     //accept == null => send another cfp
@@ -181,10 +162,7 @@ public class BuyerAgent extends Agent implements Serializable {
                         logger.log(Level.SEVERE, "Preparing another CFP");
                         logger.log(Level.SEVERE, "new iteration");
                         newIteration(acceptances);
-//                        updateRound();
                     }
-//                    logger.log(Level.SEVERE, "new iteration");
-//                    newIteration(acceptances);
                     updateRound();
                 }
 
@@ -200,38 +178,11 @@ public class BuyerAgent extends Agent implements Serializable {
         }
     }
 
-    private void setLastAcceptances(Vector responses, Vector acceptances, AID bestProposer) {
-        acceptances.removeAllElements();
-        for(int i = 0; i < responses.size(); i++){
-            ACLMessage response = (ACLMessage) responses.get(i);
-
-            System.out.println("Best Proposer; " + bestProposer);
-            System.out.println("responce.gertSender: " + response.getSender());
-            //Fazer createReply das msgs a entrar no array acceptances, accept = response.createReply()
-            if(response.getSender().equals(bestProposer)){
-                ACLMessage accept = response.createReply();
-                accept.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
-                try {
-                    accept.setContentObject(response.getContentObject());
-                } catch (IOException e) {
-                    logger.log(Level.SEVERE, "Could not set message's content: {0} ", e);
-                } catch (UnreadableException e) {
-                    logger.log(Level.SEVERE, "Could not get message's content: {0} ", e);
-                }
-                acceptances.add(accept);
-            }
-            else{
-                ACLMessage reject = response.createReply();
+    private void setRefuses(Vector acceptances){
+        for(int i = 0; i < acceptances.size(); i++) {
+            ACLMessage reject = (ACLMessage) acceptances.get(i);
+            if(reject.getPerformative() != ACLMessage.ACCEPT_PROPOSAL)
                 reject.setPerformative(ACLMessage.REJECT_PROPOSAL);
-                try {
-                    reject.setContentObject(response.getContentObject());
-                } catch (IOException e) {
-                    logger.log(Level.SEVERE, "Could not set message's content: {0} ", e);
-                } catch (UnreadableException e) {
-                    logger.log(Level.SEVERE, "Could not get message's content: {0} ", e);
-                }
-                acceptances.add(reject);
-            }
         }
     }
 
@@ -272,31 +223,30 @@ public class BuyerAgent extends Agent implements Serializable {
                 double proposedPrice = response.getPrice();
                 long proposedAvailability = response.getAvailability();
                 Proposal proposalWithComments = new Proposal(proposedPrice, proposedAvailability, response.getResourcesProposed(), response.getSender());
-                if (proposedPrice / bestProposalQ.peek().getPrice() >= 5) {
+                if (proposedPrice / bestProposal.getPrice() >= 5) {
                     proposalWithComments.setPriceComment(MUCH_LOWER);
-                    System.out.println("Comment Price set to MUCH LOWER");
-                } else if (proposedPrice / bestProposalQ.peek().getPrice() < 5) {
+//                    System.out.println("Comment Price set to MUCH LOWER");
+                } else if (proposedPrice / bestProposal.getPrice() < 5) {
                     proposalWithComments.setPriceComment(LOWER);
-                    System.out.println("Comment Price set to LOWER");
-                } else if (proposedPrice / bestProposalQ.peek().getPrice() <= 1) {
+//                    System.out.println("Comment Price set to LOWER");
+                } else if (proposedPrice / bestProposal.getPrice() <= 1) {
                     proposalWithComments.setPriceComment(OK);
-                    System.out.println("Comment Price set to OK");
+//                    System.out.println("Comment Price set to OK");
                 }
-                if (bestProposalQ.peek().getAvailability() != 0) {
-                    if (proposedAvailability / bestProposalQ.peek().getAvailability() >= 5) {
+                if (bestProposal.getAvailability() != 0) {
+                    if (proposedAvailability / bestProposal.getAvailability() >= 5) {
                         proposalWithComments.setAvailabilityComment(MUCH_LOWER);
-                        System.out.println("Comment Availability set to MUCH LOWER");
-                    } else if (proposedAvailability / bestProposalQ.peek().getAvailability() < 5) {
+//                        System.out.println("Comment Availability set to MUCH LOWER");
+                    } else if (proposedAvailability / bestProposal.getAvailability() < 5) {
                         proposalWithComments.setAvailabilityComment(LOWER);
-                        System.out.println("Comment Availability set to LOWER");
-                    } else if (proposedAvailability / bestProposalQ.peek().getAvailability() <= 1) {
-                        System.out.println("proposedAvailability " + proposedAvailability);
+//                        System.out.println("Comment Availability set to LOWER");
+                    } else if (proposedAvailability / bestProposal.getAvailability() <= 1) {
+//                        System.out.println("proposedAvailability " + proposedAvailability);
                         proposalWithComments.setAvailabilityComment(OK);
-                        System.out.println("Comment Availability set to OK");
+//                        System.out.println("Comment Availability set to OK");
                     }
                 } else
                     proposalWithComments.setAvailabilityComment(OK);
-                System.out.println("Available = " + proposedAvailability + " with comment: " + proposalWithComments.getAvailabilityComment());
                 msgToSend.setContentObject(proposalWithComments);
             } catch (UnreadableException e) {
                 logger.log(Level.SEVERE, "Could not get message's content: {0} ", e);
@@ -319,8 +269,10 @@ public class BuyerAgent extends Agent implements Serializable {
 
     private void createLogger() {
         logger.setLevel(Level.CONFIG);
-        // create an instance of Logger at the top of the file, as you would do with log4j
-        FileHandler fh;   // true forces append mode
+        /*String logfile = this.getLocalName();
+        log = new Log(logfile);*/
+        // create an instance of Log at the top of the file, as you would do with log4j
+        /*FileHandler fh;   // true forces append mode
         try {
             fh = new FileHandler("Buyer logFile.log", false);
             SimpleFormatter sf = new SimpleFormatter();
@@ -329,7 +281,7 @@ public class BuyerAgent extends Agent implements Serializable {
 
         } catch (IOException e) {
             logger.log(Level.SEVERE, "Could not create Log File {0} ", e);
-        }
+        }*/
     }
 
     /**
@@ -340,26 +292,20 @@ public class BuyerAgent extends Agent implements Serializable {
      * @return true if all resources match, false otherwise
      */
     private void evaluateProposal(Proposal proposal) {
-        logger.log(Level.SEVERE, " Proposal ");
+        logger.log(Level.INFO, " Proposal ");
         logger.log(Level.INFO, "Agent {2} send {0} price and {1} availability ", new Object[]{proposal.getPrice(), proposal.getAvailability(), proposal.getSender()});
-        System.out.println("Printing proposal in evaluate");
         proposal.printProposal();
         double priceOffered = proposal.getPrice();
         long availabilityOffered = proposal.getAvailability();
         double utility = utilityCalculation(priceOffered, availabilityOffered);
-        System.out.println("priceOffered = " + priceOffered);
-        System.out.println("availabilityOffered = " + availabilityOffered);
-        System.out.println("1 - priceOffered/maximumDisruptionCost = " + (1 - priceOffered / maximumDisruptionCost));
-        System.out.println("utility = " + utility);
-        if (bestProposalQ.isEmpty()) {
-            bestProposalQ.add(proposal);
-            System.out.println("Best proposal was null");
+
+        if (bestProposal == null) {
+            bestProposal = proposal;
         } else {
             double bestProposalUtility;
-            bestProposalUtility = utilityCalculation(bestProposalQ.peek().getPrice(), bestProposalQ.peek().getAvailability());
+            bestProposalUtility = utilityCalculation(bestProposal.getPrice(), bestProposal.getAvailability());
             if (utility > bestProposalUtility) {
-                bestProposalQ.poll();
-                bestProposalQ.add(proposal);
+                bestProposal = proposal;
             }
             //equals?
         }
@@ -393,7 +339,7 @@ public class BuyerAgent extends Agent implements Serializable {
     private double utilityCalculation(double priceOffered, long availabilityOffered) {
         long proposedDeparture = scheduledDepartureMilli + availabilityOffered;
 
-        return ((((double) scheduledDepartureMilli / proposedDeparture) + (1 - (priceOffered / maximumDisruptionCost))) / 2);
+        return ((((double) scheduledDepartureMilli / proposedDeparture) + (1.0 - (priceOffered / maximumDisruptionCost))) / 2);
 
     }
 
@@ -424,7 +370,6 @@ public class BuyerAgent extends Agent implements Serializable {
         flightDelay = new DateTime("2017-03-09 10:45:00");
         flightDuration = new DateTime("2017-03-09 18:00:00");
         scheduledDepartureMilli = scheduledDeparture.getMilliseconds(TimeZone.getTimeZone("GMT"));
-        System.out.println("scheduledDepartureMilli " + scheduledDepartureMilli);
         flightDelayMilli = flightDelay.getMilliseconds(TimeZone.getTimeZone("GMT"));
         flightDurationMilli = flightDuration.getMilliseconds(TimeZone.getTimeZone("GMT"));
         durationInMilli = flightDurationMilli - scheduledDepartureMilli;
@@ -439,12 +384,12 @@ public class BuyerAgent extends Agent implements Serializable {
     }
 
     private void takeDown(Agent a) {
-        System.out.println("Deregister " + a.getLocalName() + " from DFS. Bye...");
+        logger.log(Level.INFO, "Agent {0} has been unregistered from DFS. ", a.getLocalName());
         // Deregister from the yellow pages
         try {
             DFService.deregister(a);
         } catch (FIPAException fe) {
-            fe.printStackTrace();
+            logger.log(Level.SEVERE, "Could not deregister agent: ", fe);
         }
     }
 }
