@@ -55,9 +55,9 @@ public class Market {
 
         seller1.start();
 //        seller2.start();
-        //seller3.start();
-        //seller4.start();
-        //seller5.start();
+//        seller3.start();
+//        seller4.start();
+//        seller5.start();
         buyer.start();
         //buyer2.start();
     }

@@ -1,5 +1,6 @@
 package agents;
 
+import cbr.CBR;
 import cbr.Data;
 import cbr.FileManager;
 import jade.core.AID;
@@ -33,7 +34,7 @@ import java.util.logging.Level;
  */
 public class SellerAgent extends Agent implements Serializable{
     /**
-     * * Company's Identifier: @company
+     * * Company's Identif ier: @company
      */
     private final Logger logger = jade.util.Logger.getMyLogger(this.getClass().getName());
     //    private final String role = "Seller";
@@ -68,6 +69,7 @@ public class SellerAgent extends Agent implements Serializable{
     private File dataFile;
     private Data dataSet = null;
     private FileManager fm = new FileManager();
+    private CBR cbr;
 
     @Override
     protected void setup() {
@@ -110,7 +112,7 @@ public class SellerAgent extends Agent implements Serializable{
                         Proposal rejectedProposal = null;
                         /**
                          * First Round means that sellers need to fetch for available resources in the DataBase
-                         * The first round is identified by having both, Resource's Queue and Negotiation Historic HashMap, empty
+                         * The first round is identif ied by having both, Resource's Queue and Negotiation Historic HashMap, empty
                          */
                         if (resourcesQueue == null && negotiationHistoric.isEmpty()) {
                             handleFirstCFP(cfp);
@@ -131,10 +133,9 @@ public class SellerAgent extends Agent implements Serializable{
                             negotiationHistoric.put(round - 1, rejectedProposal);
                             proposal = applyCommentsToProposal(rejectedProposal);
                             logger.log(Level.INFO, "proposal toString = {0}", rejectedProposal.toString());
-                            if(round > 1){
+                            if (round > 1){
                                 Proposal proposalToEvaluate = negotiationHistoric.get(round - 1);
-                                int result = evaluateOutcome(proposalToEvaluate,rejectedProposal);
-                                System.out.println("Result = " + result);
+                                double result = evaluateOutcome(proposalToEvaluate,rejectedProposal);
                                 dataSet.addOutcome(result);
                             }
                         }
@@ -147,13 +148,21 @@ public class SellerAgent extends Agent implements Serializable{
                             } catch (IOException e) {
                                 logger.log(Level.SEVERE, "Could not set the message's content {0}", e);
                             }
-                            if(round > 1 ){
+                            if (round > 1 ){
                                 ArrayList<String> newCase = createCase(rejectedProposal,proposal);
-                                dataSet.addCase(newCase);
+                                int bestED = dataSet.getBestEuclideanDistance(newCase);
+                                System.out.println("Antes de adicionar o caso, ver qual e o mais parecido. Suponho que se existir um com x% de proximidade nao se adicione");
+                                System.out.println("BestED Index = " + bestED);
+                                System.out.println("BestED = " + dataSet.getLine(bestED));
+                                System.out.println("Action of BestED " + dataSet.getAction(bestED));
+                                System.out.println("Outcome of BestED " + dataSet.getOutcome(bestED));
+//                                if (dataSet.getEuclideanDistance() > 0){
+                                    dataSet.addCase(newCase);
+//                                }
                                 try {
                                     fm.save(dataSet,getLocalName() + " Database File ");
                                 } catch (IOException e) {
-                                    e.printStackTrace();
+                                    logger.log(Level.SEVERE, "Could not save to Database File {0}", e);
                                 }
                             }
                             return propose;
@@ -227,18 +236,18 @@ public class SellerAgent extends Agent implements Serializable{
         newCase.add(rejectedProposal.getPriceComment());
         newCase.add(rejectedProposal.getAvailabilityComment());
         newCase.add(String.valueOf(participants.size()));
-        if(proposal.getPrice() < rejectedProposal.getPrice()){
+        if (proposal.getPrice() < rejectedProposal.getPrice()){
             newCase.add(LOWER);
         }
-        else if(proposal.getPrice() == rejectedProposal.getPrice()){
+        else if (proposal.getPrice() == rejectedProposal.getPrice()){
             newCase.add(OK);
         }
         else
             newCase.add("HIGHER");
-        if(proposal.getAvailability() < rejectedProposal.getAvailability()){
+        if (proposal.getAvailability() < rejectedProposal.getAvailability()){
             newCase.add(LOWER);
         }
-        else if(proposal.getAvailability() == rejectedProposal.getAvailability()){
+        else if (proposal.getAvailability() == rejectedProposal.getAvailability()){
             newCase.add(OK);
         }
         else
@@ -248,17 +257,17 @@ public class SellerAgent extends Agent implements Serializable{
         return newCase;
     }
 
-    private int evaluateOutcome(Proposal proposalToEvaluate, Proposal rejectedProposal) {
-        int priceCommentToEvaluate = commentToInt(proposalToEvaluate.getPriceComment());
-        int availabilityCommentToEvaluate = commentToInt(proposalToEvaluate.getAvailabilityComment());
-        int rejectedPriceComment = commentToInt(rejectedProposal.getPriceComment());
-        int rejectedAvailabilityComment = commentToInt(rejectedProposal.getAvailabilityComment());
-        int priceEvaluation = priceCommentToEvaluate - rejectedPriceComment;
-        int availabilityEvaluation = availabilityCommentToEvaluate - rejectedAvailabilityComment;
-        int result = 0;
-        if(priceEvaluation > 0)
+    private double evaluateOutcome(Proposal proposalToEvaluate, Proposal rejectedProposal) {
+        double priceCommentToEvaluate = commentToInt(proposalToEvaluate.getPriceComment());
+        double availabilityCommentToEvaluate = commentToInt(proposalToEvaluate.getAvailabilityComment());
+        double rejectedPriceComment = commentToInt(rejectedProposal.getPriceComment());
+        double rejectedAvailabilityComment = commentToInt(rejectedProposal.getAvailabilityComment());
+        double priceEvaluation = priceCommentToEvaluate - rejectedPriceComment;
+        double availabilityEvaluation = availabilityCommentToEvaluate - rejectedAvailabilityComment;
+        double result = 0;
+        if (priceEvaluation > 0)
             result += 0.5;
-        if(availabilityEvaluation > 0)
+        if (availabilityEvaluation > 0)
             result += 0.5;
         return result;
     }
@@ -279,13 +288,16 @@ public class SellerAgent extends Agent implements Serializable{
         dataFile = new File(databaseName);
         dataSet = new Data();
         try {
-            if(dataFile.createNewFile()){
+            if (dataFile.createNewFile()){
                 logger.log(Level.INFO, "Agent {0}: Database File created", getLocalName());
             }
-            else
-                logger.log(Level.INFO, "Agent {0}: Database File already exists", getLocalName());
+            else {
+                logger.log(Level.INFO, "Agent {0}: Database File already exists. Loading...", getLocalName());
+                dataSet = fm.read(databaseName);
+                System.out.println("DataSet = " + dataSet);
+            }
         } catch (IOException e) {
-            logger.log(Level.INFO, "Could not create or open the specified file", e);
+            logger.log(Level.INFO, "Could not create or open the specif ied file", e);
         }
     }
 
@@ -297,6 +309,7 @@ public class SellerAgent extends Agent implements Serializable{
     }
 
     private Proposal applyCommentsToProposal(Proposal rejectedProposal) {
+        //chama CBR
         ArrayList<Resource> queueHead = resourcesQueue.poll();
         double displacementCosts = sumResourcesPrice(queueHead);
         String priceComment = rejectedProposal.getPriceComment();
@@ -338,7 +351,7 @@ public class SellerAgent extends Agent implements Serializable{
                 break;
         }
         // Aqui entra a aprendizagem dos agentes
-        if(hasBetterUtility(rejectedProposal, queueHead)){
+        if (hasBetterUtility(rejectedProposal, queueHead)){
             resourcesQueue.add(queueHead);
         }
         else{
@@ -420,10 +433,10 @@ public class SellerAgent extends Agent implements Serializable{
         /**
          * The starting available date must be read too, so the resource availability  is
          * ScheduledDeparture - what was read from DB
-         * and if that difference is < 0,
-         * compare it with delay (delay - that difference, because both are negative).
+         * and if that dif ference is < 0,
+         * compare it with delay (delay - that dif ference, because both are negative).
          * if >0 means that the resource isnt good -1 - (-3) 2 => -3 is later than -1
-         * Ideal scenario, difference = delay
+         * Ideal scenario, dif ference = delay
          * Otherwise, the more negative the better.
          */
         Resource r1  = new Aircraft("Boeing 777", 396);
@@ -439,7 +452,7 @@ public class SellerAgent extends Agent implements Serializable{
         r4.setPrice(451123.51D);
         r4.setAvailability(9000L);
         Resource r5 = new CrewMember(2, "Pilot", "English A2");
-        r5.setPrice(5543.23D);
+        r5.setPrice(2543.23D);
         r5.setAvailability(129000L);
         Resource r6 = new CrewMember(2, "Pilot", "English A2");
         r6.setPrice(65333.21D);
@@ -459,7 +472,7 @@ public class SellerAgent extends Agent implements Serializable{
         logger.log(Level.INFO,"Available Resources {0}", availableResources);
         //The query returns resources within the parameters, so there's no reason to compare
 
-        for(int i = 0; i < availableResources.size(); i++) {
+        for (int i = 0; i < availableResources.size(); i++) {
             for (int j = i; j < availableResources.size(); j++) {
                 if (availableResources.get(i).getClass() != availableResources.get(j).getClass()) {
                     ArrayList<Resource> combination = new ArrayList<>();
@@ -476,7 +489,7 @@ public class SellerAgent extends Agent implements Serializable{
 
     //Return peek or element from queue
     private ArrayList<Resource> putResourcesIntoQueue(ArrayList<ArrayList<Resource>> solutions) {
-        if(solutions.isEmpty()) {
+        if (solutions.isEmpty()) {
             logger.log(Level.INFO,"Resources not available");
             //exits negotiation by sending refuse
         }
@@ -521,7 +534,7 @@ public class SellerAgent extends Agent implements Serializable{
      */
     private long getWorstAvailability(ArrayList<Resource> resources) {
         long worstAvailability = -1;
-        if(resources.get(0).getAvailability() != null) {
+        if (resources.get(0).getAvailability() != null) {
             worstAvailability = resources.get(0).getAvailability();
             for (int i = 0; i < resources.size(); i++) {
                 Resource aResource = resources.get(i);

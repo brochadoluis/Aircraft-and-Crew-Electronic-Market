@@ -1,5 +1,7 @@
 package cbr;
 
+import utils.Log;
+
 import java.util.ArrayList;
 
 /**
@@ -9,19 +11,28 @@ public class Data {
     // Case , Data
     private ArrayList<ArrayList<String> > data;
     private int lineSize = 0;
+    private final int numFeatures = 3;
+    private CBR cbr;
+    private Log log;
 
     public Data(ArrayList<ArrayList<String>> data) {
         if(data == null){
             this.data = new ArrayList<>();
             setHeader();
+            cbr = new CBR(this);
+            log = new Log("Data Log");
+
         }
         else{
             this.data = data;
+            cbr = new CBR(this);
+            log = new Log("Data Log");
         }
     }
 
     public Data() {
         this.data = new ArrayList<>();
+        cbr = new CBR(this);
         setHeader();
     }
 
@@ -35,6 +46,7 @@ public class Data {
         header.add("Evaluation");
         data.add(header);
         this.lineSize = data.get(0).size();
+        cbr.setFeatures(header);
     }
 
     public ArrayList<String> getHeader(){
@@ -49,17 +61,25 @@ public class Data {
             }
             data.add(line);
         }
+        setCBRData();
     }
 
-    public void addOutcome(int outcome){
+    public void addOutcome(double outcome){
         for (int i = 1; i < data.size(); i++) {
             for(int j = 0; j < lineSize; j++){
                 if(data.get(i).get(j) == null){
                     data.get(i).remove(j);
                     data.get(i).add(String.valueOf(outcome));
                 }
+                else
+                    continue;
             }
         }
+        setCBRData();
+    }
+
+    public int getBestEuclideanDistance(ArrayList<String> newCase){
+        return cbr.getBestEuclideanDistance(newCase,this);
     }
 
     public int getSize() {
@@ -77,4 +97,32 @@ public class Data {
     public String getString(int outerIndex, int innerIndex) {
         return data.get(outerIndex).get(innerIndex);
     }
+
+    public int getNumFeatures() {
+        return numFeatures;
+    }
+
+    public ArrayList<String> getAction(int line){
+        ArrayList<String> action = new ArrayList<>();
+        //Action taken on Price
+        action.add(data.get(line).get(lineSize-3));
+        //Action taken on Availability
+        action.add(data.get(line).get(lineSize-2));
+
+        return action;
+    }
+
+    public String getOutcome(int line){
+        return data.get(line).get(lineSize - 1);
+    }
+
+    public double getEuclideanDistance(){
+        return cbr.getEuclideanDistance();
+    }
+
+    private void setCBRData() {
+        cbr.setData(this);
+    }
+
+    //needs get outcome and get action
 }
