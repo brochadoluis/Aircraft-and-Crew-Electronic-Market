@@ -57,15 +57,18 @@ public class CBR {
      */
     private double calculateEuclideanDistance(ArrayList<String> newCase, ArrayList<String> dataSetCase){
         double sum = 0.0;
-        double euclideanDistance = 0.0;
+        double euclideanDistance;
         ArrayList<Integer> newCaseInt = CommentsToInt(newCase);
         ArrayList<Integer> dataSetCaseInt = CommentsToInt(dataSetCase);
-        for(int i = 0; i < newCaseInt.size(); i++){/*
-            log.write(" featuresWeights.get(newCase.get(i) " + featuresWeights.get(newCase.get(i)));
-            log.write(" featuresWeights.get{LOWER} " + featuresWeights.get("Price Comment"));
-            log.write(" newCase.get(i) " + newCase.get(i));
-            log.write(" data.get(0).get(i) " + data.getLine(0).get(i));
-            log.write("(newCaseInt.get(i) - dataSetCaseInt.get(i) " + (newCaseInt.get(i) - dataSetCaseInt.get(i)));*/
+        for(int i = 0; i < newCaseInt.size(); i++){
+//            log.write(" newCase.get(i) " + newCase.get(i));
+//            log.write(" data.get(0).get(i) " + data.getLine(0).get(i));
+            log.write("(newCaseInt.get(i) - dataSetCaseInt.get(i) " + (newCaseInt.get(i) - dataSetCaseInt.get(i)));
+            System.out.println("featuresWeights = " + featuresWeights);
+            System.out.println("newCaseInt.get(i) = " + newCaseInt.get(i));
+            System.out.println("dataSetCaseInt.get(i),2.0) = " + dataSetCaseInt.get(i));
+            System.out.println("dataSetCase.get(i) = " + dataSetCase.get(i));
+            System.out.println("featuresWeights.get(dataSetCase.get(i) = " + featuresWeights.get(data.getLine(0).get(i)));
             sum += Math.pow(newCaseInt.get(i) - dataSetCaseInt.get(i),2.0) * featuresWeights.get(data.getLine(0).get(i));
 
         }
@@ -85,30 +88,37 @@ public class CBR {
         ArrayList<Double> euclideanDistances = new ArrayList<>();
         System.out.println("Data Set Size + " + dataSet.getSize());
         for(int i = 1; i < dataSet.getSize(); i++){
-                System.out.println("dataSet.getLine(i) " +dataSet.getLine(i) );
-                euclideanDistances.add(calculateEuclideanDistance(newCase,dataSet.getLine(i)));
+            System.out.println("dataSet.getLine ( " + i + " ) " +dataSet.getLine(i) );
+            euclideanDistances.add(calculateEuclideanDistance(newCase,dataSet.getLine(i)));
         }
         //find lowest value index
+        System.out.println("Euclidean Distanves size = " + euclideanDistances.size());
         int index = findLowest(euclideanDistances);
         mostSimilarCaseDistance = euclideanDistances.get(index);
+        System.out.println("most silmiar distance = " + mostSimilarCaseDistance);
+        System.out.println("Index in get best euclidiean disncaesd = " + index);
         return index;
     }
 
     private int findLowest(ArrayList<Double> euclideanDistances) {
         int index = 0;
-        System.out.println("euclidean distences size  = " + euclideanDistances.size());
+        System.out.println("euclidean distances size  = " + euclideanDistances.size());
         double min = euclideanDistances.get(index);
+        System.out.println("Min = " + min);
         for(int i = 0; i < euclideanDistances.size(); i++){
-            System.out.println("i = " + i);
-            System.out.println("Index = " + index);
-            System.out.println("Min = " + min);
-                if(euclideanDistances.get(i) < min){
-                    min = euclideanDistances.get(i);
-                    index = i;
-                }
-                else
-                    continue;
+            System.out.println("euclideanDistances.size() = "+ euclideanDistances.size());
+            System.out.println("euclideanDistances.get " + i + " " + euclideanDistances.get(i));
+            if(euclideanDistances.get(i) < min){
+                min = euclideanDistances.get(i);
+                index = i;
+                System.out.println("i = " + i);
+                System.out.println("Index = " + index);
+                System.out.println("Minimum = " + min);
             }
+            else
+                continue;
+        }
+        System.out.println("Indezx = " + index);
         return index;
     }
 
@@ -131,6 +141,7 @@ public class CBR {
                     commentValues.add(2);
                     break;
                 default:
+//                    commentValues.add(Integer.parseInt(aCase.get(i)));
                     break;
             }
         }

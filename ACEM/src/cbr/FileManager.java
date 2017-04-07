@@ -96,6 +96,17 @@ public class FileManager {
             for (int i = 1; i < data.getSize(); i++) {
                 for(int j = 0; j < data.getLineSize(); j++){
                     out.print("\t");
+                    System.out.println("data = " + data);
+                    System.out.println("data.getDize = " + data.getSize());
+
+                    for(int k = 0; k < data.getSize();k++){
+                        System.out.println("data.getLine " + k + " = " + data.getLine(k));
+                    }
+
+                    System.out.println("i = " +i);
+                    System.out.println("j = " +j);
+                    System.out.println("Data.getLineSize = " + data.getLineSize());
+                    System.out.println("data.getString(1,5) = " + data.getString(1,5));
                     if(data.getString(i,j) != null) {
                         out.print(data.getString(i, j));
                         if (j < data.getLineSize() - 1) {

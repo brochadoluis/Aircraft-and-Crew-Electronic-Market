@@ -54,6 +54,7 @@ public class Data {
     }
 
     public void addCase(ArrayList<String> caseString) {
+        System.out.println("Adding case");
         if(caseString.size() <= lineSize) {
             ArrayList<String> line = new ArrayList<>();
             for(int i = 0; i < caseString.size(); i++){
@@ -64,18 +65,27 @@ public class Data {
         setCBRData();
     }
 
-    public void addOutcome(double outcome){
+    /**
+     *
+     * @param outcome: Outcome of an action
+     * @return: the index of the case that had it's outcome added
+     */
+    public int addOutcome(double outcome){
+        int index = 0;
         for (int i = 1; i < data.size(); i++) {
             for(int j = 0; j < lineSize; j++){
-                if(data.get(i).get(j) == null){
+                if(data.get(i).get(j) == "-1"){
                     data.get(i).remove(j);
                     data.get(i).add(String.valueOf(outcome));
+                    index = i;
                 }
                 else
                     continue;
             }
         }
         setCBRData();
+        System.out.println("INDEX ===== " + index);
+        return index;
     }
 
     public int getBestEuclideanDistance(ArrayList<String> newCase){
@@ -95,6 +105,9 @@ public class Data {
     }
 
     public String getString(int outerIndex, int innerIndex) {
+        System.out.println("data = " + data);
+        System.out.println("OuterIdnex - " + outerIndex);
+        System.out.println("InnerIndex - " + innerIndex);
         return data.get(outerIndex).get(innerIndex);
     }
 
@@ -120,9 +133,16 @@ public class Data {
         return cbr.getEuclideanDistance();
     }
 
+    public ArrayList<String> getNFeatures(int numberOfFeaturesToReturn, int line) {
+        ArrayList<String> featuresRequired = new ArrayList<>();
+        for(int i = 0; i < numberOfFeaturesToReturn; i++){
+            System.out.println("Line = " + line);
+            featuresRequired.add(data.get(line).get(i));
+        }
+        return featuresRequired;
+    }
+
     private void setCBRData() {
         cbr.setData(this);
     }
-
-    //needs get outcome and get action
 }
