@@ -136,9 +136,10 @@ public class BuyerAgent extends Agent implements Serializable {
                             proposal = retrieveProposalContent(msg);
                             evaluateProposal(proposal);
                             if (round == 7) {
+                                bestProposal = proposal;
                                 bestProposer = msg.getSender();
                                 accept = reply;
-                                logger.log(Level.INFO, "Best proposal is: ");
+                                logger.log(Level.INFO, "Best proposal is: {0}", bestProposal.getAvailability() );
                                 bestProposal.printProposal();
                             }
                         }
@@ -149,7 +150,7 @@ public class BuyerAgent extends Agent implements Serializable {
                     // Accept the proposal of the best proposer
                     if (accept != null) {
                         //sets one to accept and all others to refuse
-                        logger.log(Level.INFO, "Accepting proposal {0}, from responder {1}", new Object[]{bestProposal.toString(), bestProposer.getName()});
+                        logger.log(Level.INFO, "Accepting proposal {0}, from responder {1}", new Object[]{bestProposal, bestProposer.getName()});
                         accept.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
                         setRefuses(acceptances);
                         logger.log(Level.INFO, "Round n (After Accept): {0} ", round);
@@ -223,13 +224,14 @@ public class BuyerAgent extends Agent implements Serializable {
                 double proposedPrice = response.getPrice();
                 long proposedAvailability = response.getAvailability();
                 Proposal proposalWithComments = new Proposal(proposedPrice, proposedAvailability, response.getResourcesProposed(), response.getSender());
+                //These conditions need to be updated
                 if (proposedPrice / bestProposal.getPrice() >= 5) {
                     proposalWithComments.setPriceComment(MUCH_LOWER);
 //                    System.out.println("Comment Price set to MUCH LOWER");
                 } else if (proposedPrice / bestProposal.getPrice() < 5) {
                     proposalWithComments.setPriceComment(LOWER);
 //                    System.out.println("Comment Price set to LOWER");
-                } else if (proposedPrice / bestProposal.getPrice() <= 1) {
+                } else if (proposedPrice / bestProposal.getPrice() <= 3) {
                     proposalWithComments.setPriceComment(OK);
 //                    System.out.println("Comment Price set to OK");
                 }

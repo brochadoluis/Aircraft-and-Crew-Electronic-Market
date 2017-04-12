@@ -71,6 +71,7 @@ public class SellerAgent extends Agent implements Serializable{
     private Data dataSet = null;
     private FileManager fm = new FileManager();
     private CBR cbr;
+    private boolean recencyOutcome = false;
 
     @Override
     protected void setup() {
@@ -131,6 +132,9 @@ public class SellerAgent extends Agent implements Serializable{
                                 logger.log(Level.SEVERE, "Could not get the message's content {0}", e);
                             }
                             //Add proposal to historic
+                            System.out.println("Rejected proposal get comments " );
+                            rejectedProposal.printComments();
+                            System.out.println();
                             negotiationHistoric.put(round - 1, rejectedProposal);
                             proposal = applyCommentsToProposal(rejectedProposal);
                             logger.log(Level.INFO, "proposal toString = {0}", rejectedProposal.toString());
@@ -209,20 +213,24 @@ public class SellerAgent extends Agent implements Serializable{
         });
     }
 
-    private ArrayList<String> createCase(Proposal rejectedProposal, Proposal proposal) {
-        //Something better?
+    private ArrayList<String> createCase(Proposal rejectedProposal) {
+        // PRICE MUST BE IN FUNCTION OF AVAILABILITY
         ArrayList<String> newCase = new ArrayList<>();
         newCase.add(rejectedProposal.getPriceComment());
         newCase.add(rejectedProposal.getAvailabilityComment());
         newCase.add(String.valueOf(participants.size()));
-        if (proposal.getPrice() < rejectedProposal.getPrice()){
+
+        //Seller is available to lower the price
+        if (rejectedProposal.getPrice() > minimumPrice){
             newCase.add(LOWER);
         }
-        else if (proposal.getPrice() == rejectedProposal.getPrice()){
+        //Seller isn't available to lower the price
+        else if(rejectedProposal.getPrice() == minimumPrice){
             newCase.add(OK);
         }
         else
-            newCase.add("HIGHER");
+            newCase.add(rejectedProposal.getPriceComment());
+
         if (proposal.getAvailability() < rejectedProposal.getAvailability()){
             newCase.add(LOWER);
         }
@@ -230,9 +238,11 @@ public class SellerAgent extends Agent implements Serializable{
             newCase.add(OK);
         }
         else
-            newCase.add("HIGHER");
+            newCase.add(rejectedProposal.getAvailabilityComment());
+
         newCase.add("-1");
 
+        System.out.println("NEW CASE COM CQUALQWEW WNMERRSDM A MENOS " + newCase);
         return newCase;
     }
 
@@ -291,20 +301,24 @@ public class SellerAgent extends Agent implements Serializable{
         ArrayList<Resource> queueHead = resourcesQueue.poll();
 //        double displacementCosts = sumResourcesPrice(queueHead);
         ArrayList<String> comments = findSimilarCases(rejectedProposal);
-        System.out.println("Comments " + comments);
+        System.out.println("Comments in Apply Comments to Proposal " + comments);
         String priceComment = comments.get(0);
         String availabilityComment = comments.get(1);
+        ArrayList<String> action = new ArrayList<>();
 
         switch (priceComment){
             case OK:
+                action.add(OK);
 //                System.out.println("OK received on price. Nothing to change");
                 break;
             case LOWER:
+                action.add(LOWER);
 //                System.out.println("LOWER received on price. Going to decrease price by 15%");
                 rejectedProposal.setPrice(rejectedProposal.getPrice()*0.85);
 //                System.out.println("LOWER: New price = " + rejectedProposal.getPrice()*0.85);
                 break;
             case MUCH_LOWER:
+                action.add(MUCH_LOWER);
 //                System.out.println("MUCH LOWER received on price. Going to decrease price by 40%");
                 rejectedProposal.setPrice(rejectedProposal.getPrice()*0.6);
 //                System.out.println("LOWER: New price = " + rejectedProposal.getPrice()*0.6);
@@ -314,15 +328,18 @@ public class SellerAgent extends Agent implements Serializable{
         }
         switch (availabilityComment){
             case OK:
+                action.add(OK);
 //                System.out.println("OK received on availability. Nothing to change");
                 break;
             case LOWER:
+                action.add(LOWER);
 //                System.out.println("LOWER received on availability. Checking if it is possible to reduce");
                 //Something to check this
                 rejectedProposal.setAvailability((long) (rejectedProposal.getAvailability()*0.85));
 //                System.out.println("LOWER: New availability = " + rejectedProposal.getAvailability()*0.85);
                 break;
             case MUCH_LOWER:
+                action.add(MUCH_LOWER);
 //                System.out.println("MUCH LOWER received on availability. Checking if it is possible to reduce");
                 //Something to check this
                 rejectedProposal.setAvailability((long) (rejectedProposal.getAvailability()*0.6));
@@ -347,121 +364,89 @@ public class SellerAgent extends Agent implements Serializable{
     private ArrayList<String> findSimilarCases(Proposal rejectedProposal) {
         if (round > 1){
             Proposal proposalToEvaluate = negotiationHistoric.get(round - 1);
+            System.out.println("negotiationHistoric.get(round - 1) " + negotiationHistoric.get(round - 1));
+            System.out.println("Round " + round);
             double previousRoundCaseEvaluation = evaluateOutcome(proposalToEvaluate,rejectedProposal);
             int outcomeIndex = dataSet.addOutcome(previousRoundCaseEvaluation);
             System.out.println();
-            ArrayList<String> newCase = createCase(rejectedProposal,proposal);
-            ArrayList<String> comments = new ArrayList<>();
+            ArrayList<String> newCase = createCase(rejectedProposal);
+            ArrayList<String> action = new ArrayList<>();
             if(dataSet.getSize() > 1){
-                System.out.println("Data.get 1 " + dataSet.getLine(1));
-                System.out.println("new case = " + newCase);
-                int similarCaseIndex = dataSet.getBestEuclideanDistance(newCase);
-                similarCaseIndex++;
+                ArrayList<Integer> similarCaseIndexes = dataSet.getEuclideanDistances(newCase);
+                //Use simulated annealing to chose a case amongst the various cases
+                //For now we will choose the case with the best evaluation
+                int similarCaseIndex = dataSet.getBestEvaluation(similarCaseIndexes);
                 System.out.println("SIMILAR CASE INDEX = " + similarCaseIndex);
-                String ola = dataSet.getOutcome(similarCaseIndex);
-                System.out.println("OLA = " + ola);
-                double evaluation = Double.parseDouble(ola);
-                System.out.println("Antes de adicionar o caso, ver qual e o mais parecido. Suponho que se existir um com x% de proximidade nao se adicione");
-                System.out.println("euclideanDistante Index = " + similarCaseIndex);
-                System.out.println("euclideanDistante = " + dataSet.getLine(similarCaseIndex));
-                System.out.println("Action of euclideanDistante " + dataSet.getAction(similarCaseIndex));
-                System.out.println("Outcome of euclideanDistante " + dataSet.getOutcome(similarCaseIndex));
-                System.out.println("Outcome of euclideanDistante using evaluation variable " + evaluation);
-                //The case exists in the Data Base
-                if(dataSet.getEuclideanDistance() == 0.0){
-                    //<= 0.5 to test, this condition must be >= 0.5, that is, when the outcome is positive
-                    if(evaluation >= 0.5 ){
-                        //Previous experiences show an improvement so the same action is going to be applied
-                        comments = dataSet.getNFeatures(2, similarCaseIndex);
-                        System.out.println("Comments = " + comments);
+
+                if(similarCaseIndex > 0 ){System.out.println("euclideanDistance = " + dataSet.getLine(similarCaseIndex));
+
+//                similarCaseIndex++;
+                    if(recencyOutcome){
                         //recency on outcome
+                        Proposal previousProposal = negotiationHistoric.get(round - 1);
+                        Proposal beforePreviousProposal = negotiationHistoric.get(round - 2);
+                        double recencyEvaluation = evaluateOutcome(previousProposal,beforePreviousProposal);
+                        double xpto = dataSet.recencyOutcome(recencyEvaluation, similarCaseIndex);
+                        System.out.println("XPTO = " + xpto);
+                        recencyOutcome = false;
                     }
-                    else {
-                        //Creates an hypothetical case, changing one of the comments received to search for previous experiences with the hypothetical case features
-                        System.out.println("Estou a enntrar aqui mas nao sei o que fazer");
-                        comments = createHypotheticalCase(newCase);
-                        System.out.println("ELSE NEW CASE = " + newCase);
-//                        comments.add(String.valueOf(participants.size()));
-                        ArrayList<String> hypotheticalCase = new ArrayList<>();
-                        hypotheticalCase.add(newCase.get(0));
-                        hypotheticalCase.add(newCase.get(1));
-                        hypotheticalCase.add(String.valueOf(participants.size()));
-                        /*hypotheticalCase.add(comments.get(0));
-                        hypotheticalCase.add(comments.get(1));*/
-//                        dataSet.addCase(comments);
-                        System.out.println("Comments = " + comments);
+                    System.out.println("euclideanDistante Index = " + similarCaseIndexes);
+                    System.out.println("similarCaseIndex = " + similarCaseIndex);
+                    System.out.println("euclideanDistante = " + dataSet.getLine(similarCaseIndex));
+                    System.out.println("Action of euclideanDistante " + dataSet.getAction(similarCaseIndex));
+                    System.out.println("Outcome of euclideanDistante " + dataSet.getOutcome(similarCaseIndex));
+                    //The case exists in the Data Base
+                    if(dataSet.getEuclideanDistance(similarCaseIndex) == 0.0){
+                        System.out.println("Encontrei um caso igual");
+                        double evaluation = Double.parseDouble(dataSet.getOutcome(similarCaseIndex));
+                        System.out.println("Outcome of euclideanDistante using evaluation variable " + evaluation);
+                        //<= 0.5 to test, this condition must be >= 0.5, that is, when the outcome is positive
+                        System.out.println("O caso que encontrei tem avaliacao positiva");
+                        recencyOutcome = true;
+                        //Previous experiences show an improvement so the same action is going to be applied
+                        action = dataSet.getNFeatures(2, similarCaseIndex);
+                        System.out.println("Comments quando a distancia e 0 = " + action);
+
+                        /**
+                         * TODO: Else, agent must decide what to do, considering the fact that there are no similar previous experiences, add new case if there are no similar cases to the decision made
+                         */
+
                     }
-                    /**
-                     * TODO: Else, agent must decide what to do, considering the fact that there are no similar previous experiences, add new case if there are no similar cases to the decision made
-                     */
+
                 }
-                //Another else needed, when distance is != 0. Does the same as the following, it just adds the case to the dataset
+                //Distance != 0. Does the same as the following, it just adds the case to the dataset
+                else {
+                    //As there are no similar cases, current case is added to the dataSet
+                    System.out.println("Estou a a adiconar um caso porque não existe caso igual");
+                    System.out.println("Adicionar novo caso, quando nao ha casos iguais. Caso: " + newCase);
+                    dataSet.addCase(newCase);
+                    action.add(rejectedProposal.getPriceComment());
+                    action.add(rejectedProposal.getAvailabilityComment());
+                    System.out.println("Comments quando a distancia nao e 0 = " + action);
+                }
             }
             else {
                 //As there are no similar cases, current case is added to the dataSet
-                System.out.println("Estou a a adiconar um caso porque não existe caso igual");
-                System.out.println("ELSE ELSE NEW CASE = " + newCase);
+                System.out.println("Estou a a adiconar um caso porque não existe caso  no dataSet");
+                System.out.println("Adicionar novo caso, quando nao ha casos no dataSet. Caso: " + newCase);
                 dataSet.addCase(newCase);
-                comments.add(rejectedProposal.getPriceComment());
-                comments.add(rejectedProposal.getAvailabilityComment());
-                System.out.println("Comments = " + comments);
+                action.add(rejectedProposal.getPriceComment());
+                action.add(rejectedProposal.getAvailabilityComment());
+                System.out.println("Comments quando o dataSet nao tem mais do que o cabeçalho = " + action);
             }
-//                                }
             try {
                 fm.save(dataSet,getLocalName() + " Database File ");
             } catch (IOException e) {
                 logger.log(Level.SEVERE, "Could not save to Database File {0}", e);
             }
-            comments.add(rejectedProposal.getPriceComment());
-            comments.add(rejectedProposal.getAvailabilityComment());
-            return comments;
+
+            if(action.isEmpty()) {
+                action.add(rejectedProposal.getPriceComment());
+                action.add(rejectedProposal.getAvailabilityComment());
+            }
+            return action;
         }
         return null;
-    }
-
-    private ArrayList<String> createHypotheticalCase(ArrayList<String> comments) {
-        ArrayList<String> hypotheticalCase = new ArrayList<>();
-        hypotheticalCase.add(comments.get(0));
-        hypotheticalCase.add(comments.get(1));
-        if(hypotheticalCase.get(0).equals(LOWER)){
-            hypotheticalCase.set(0,"TO CHANGE");
-            ArrayList<String> action = getHypotheticalCaseEvaluation(hypotheticalCase);
-            if (action != null) return action;
-        }
-        hypotheticalCase.add(comments.get(0));
-        hypotheticalCase.add(comments.get(1));
-        if(hypotheticalCase.get(1).equals(LOWER)) {
-            hypotheticalCase.set(1, "TO CHANGE");
-            ArrayList<String> action = getHypotheticalCaseEvaluation(hypotheticalCase);
-            if (action != null) return action;
-        }
-        //alterar os 2 comentarios em simultaneo?
-        return comments;
-    }
-
-    private ArrayList<String> getHypotheticalCaseEvaluation(ArrayList<String> hypotheticalCase) {
-        for (int i = 0; i < hypotheticalCase.size(); i++){
-            if(("TO CHANGE").equals(hypotheticalCase.get(i))){
-                hypotheticalCase.set(i,MUCH_LOWER);
-            }
-        }
-        hypotheticalCase.add(String.valueOf(participants.size()));
-        System.out.println("hypotheticalCase " + hypotheticalCase);
-        int similarCaseIndex = dataSet.getBestEuclideanDistance(hypotheticalCase);
-        similarCaseIndex++;
-        System.out.println("DASFASHJKDN SIMILAR CASE = " + similarCaseIndex );
-        System.out.println(" ASASD " + dataSet.getOutcome(similarCaseIndex));
-        double evaluation = Double.parseDouble(dataSet.getOutcome(similarCaseIndex));
-        ArrayList<String> action = new ArrayList<>();
-        if(dataSet.getEuclideanDistance() == 0.0){
-            if(evaluation >= 0.5 ) {
-                action = dataSet.getAction(similarCaseIndex);
-                return action;
-            }
-            else
-                return action;
-        }
-        return action;
     }
 
     private boolean hasBetterUtility(Proposal rejectedProposal, ArrayList<Resource> peek) {

@@ -54,7 +54,6 @@ public class Data {
     }
 
     public void addCase(ArrayList<String> caseString) {
-        System.out.println("Adding case");
         if(caseString.size() <= lineSize) {
             ArrayList<String> line = new ArrayList<>();
             for(int i = 0; i < caseString.size(); i++){
@@ -73,23 +72,51 @@ public class Data {
     public int addOutcome(double outcome){
         int index = 0;
         for (int i = 1; i < data.size(); i++) {
-            for(int j = 0; j < lineSize; j++){
-                if(data.get(i).get(j) == "-1"){
-                    data.get(i).remove(j);
+                if(data.get(i).get(lineSize-1).equals("-1")){
+                    data.get(i).remove(lineSize-1);
                     data.get(i).add(String.valueOf(outcome));
                     index = i;
                 }
                 else
                     continue;
             }
-        }
         setCBRData();
-        System.out.println("INDEX ===== " + index);
+
         return index;
     }
 
-    public int getBestEuclideanDistance(ArrayList<String> newCase){
-        return cbr.getBestEuclideanDistance(newCase,this);
+    public double recencyOutcome(double newOutcome,int line){
+        double oldOutcome = Double.parseDouble(data.get(line).get(lineSize-1));
+        data.get(line).remove(lineSize-1);
+        //This way, the outcome has 3 decimal places
+        double updatedOutcome = ((oldOutcome * 0.2 + newOutcome * 0.8)*1000)/1000;
+        data.get(line).add(String.valueOf(updatedOutcome));
+        return ((oldOutcome * 0.2 + newOutcome * 0.8)*1000)/1000;
+    }
+
+    public ArrayList<Integer> getEuclideanDistances(ArrayList<String> newCase){
+        return cbr.getEuclideanDistances(newCase,this);
+    }
+
+
+    public int getBestEvaluation(ArrayList<Integer> indexes) {
+        int index = -1;
+        double maximum = 0.0;
+        for (int i = 0; i < indexes.size(); i++){
+            System.out.println("Indexes at " + i + " = " +indexes.get(i) );
+                double currentEvaluation = Double.parseDouble(getOutcome(indexes.get(i)));
+                if(index < 0 && maximum <= currentEvaluation){
+                    maximum = currentEvaluation;
+                    index = i+1;
+                }
+                if(maximum < currentEvaluation){
+                    maximum = currentEvaluation;
+                    index = i+1;
+                }
+                else
+                    continue;
+        }
+        return index;
     }
 
     public int getSize() {
@@ -105,9 +132,6 @@ public class Data {
     }
 
     public String getString(int outerIndex, int innerIndex) {
-        System.out.println("data = " + data);
-        System.out.println("OuterIdnex - " + outerIndex);
-        System.out.println("InnerIndex - " + innerIndex);
         return data.get(outerIndex).get(innerIndex);
     }
 
@@ -129,14 +153,13 @@ public class Data {
         return data.get(line).get(lineSize - 1);
     }
 
-    public double getEuclideanDistance(){
-        return cbr.getEuclideanDistance();
+    public double getEuclideanDistance(int index){
+        return cbr.getEuclideanDistance(index);
     }
 
     public ArrayList<String> getNFeatures(int numberOfFeaturesToReturn, int line) {
         ArrayList<String> featuresRequired = new ArrayList<>();
         for(int i = 0; i < numberOfFeaturesToReturn; i++){
-            System.out.println("Line = " + line);
             featuresRequired.add(data.get(line).get(i));
         }
         return featuresRequired;
