@@ -72,14 +72,14 @@ public class Data {
     public int addOutcome(double outcome){
         int index = 0;
         for (int i = 1; i < data.size(); i++) {
-                if(data.get(i).get(lineSize-1).equals("-1")){
-                    data.get(i).remove(lineSize-1);
-                    data.get(i).add(String.valueOf(outcome));
-                    index = i;
-                }
-                else
-                    continue;
+            if(data.get(i).get(lineSize-1).equals("-1")){
+                data.get(i).remove(lineSize-1);
+                data.get(i).add(String.valueOf(outcome));
+                index = i;
             }
+            else
+                continue;
+        }
         setCBRData();
 
         return index;
@@ -104,17 +104,17 @@ public class Data {
         double maximum = 0.0;
         for (int i = 0; i < indexes.size(); i++){
             System.out.println("Indexes at " + i + " = " +indexes.get(i) );
-                double currentEvaluation = Double.parseDouble(getOutcome(indexes.get(i)));
-                if(index < 0 && maximum <= currentEvaluation){
-                    maximum = currentEvaluation;
-                    index = i+1;
-                }
-                if(maximum < currentEvaluation){
-                    maximum = currentEvaluation;
-                    index = i+1;
-                }
-                else
-                    continue;
+            double currentEvaluation = Double.parseDouble(getOutcome(indexes.get(i)));
+            if(index < 0 && maximum <= currentEvaluation){
+                maximum = currentEvaluation;
+                index = i+1;
+            }
+            if(maximum < currentEvaluation){
+                maximum = currentEvaluation;
+                index = i+1;
+            }
+            else
+                continue;
         }
         return index;
     }

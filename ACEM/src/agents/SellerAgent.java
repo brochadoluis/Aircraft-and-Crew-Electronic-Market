@@ -367,7 +367,7 @@ public class SellerAgent extends Agent implements Serializable{
             System.out.println("negotiationHistoric.get(round - 1) " + negotiationHistoric.get(round - 1));
             System.out.println("Round " + round);
             double previousRoundCaseEvaluation = evaluateOutcome(proposalToEvaluate,rejectedProposal);
-            int outcomeIndex = dataSet.addOutcome(previousRoundCaseEvaluation);
+                    int outcomeIndex = dataSet.addOutcome(previousRoundCaseEvaluation);
             System.out.println();
             ArrayList<String> newCase = createCase(rejectedProposal);
             ArrayList<String> action = new ArrayList<>();

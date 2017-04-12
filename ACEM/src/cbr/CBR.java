@@ -96,7 +96,7 @@ public class CBR {
             System.out.println(" (euclideanDistances.get(i) == 0.0) = " + (euclideanDistances.get(i) == 0.0));
             System.out.println(" euclideanDistances.get(i) = " + euclideanDistances.get(i));
             if(euclideanDistances.get(i) == 0.0){
-                indexes.add(i);
+                indexes.add(i+1);
             }
         }
         return indexes;
