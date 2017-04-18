@@ -3,6 +3,7 @@ package agents;
 import cbr.CBR;
 import cbr.Data;
 import cbr.FileManager;
+import db_connection.Loader;
 import jade.core.AID;
 import jade.core.Agent;
 import jade.core.behaviours.Behaviour;
@@ -72,10 +73,13 @@ public class SellerAgent extends Agent implements Serializable{
     private FileManager fm = new FileManager();
     private CBR cbr;
     private boolean recencyOutcome = false;
+    private Loader db;
 
     @Override
     protected void setup() {
         // Build the description used as template for the subscription
+        db = new Loader();
+        db.establishConnection("seller");
         createLogger();
         createDataBaseFile(getLocalName() + " Database File ");
         DFAgentDescription dfd;

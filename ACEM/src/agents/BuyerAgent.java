@@ -17,9 +17,11 @@ import utils.Aircraft;
 import utils.CrewMember;
 import utils.Log;
 import utils.Resource;
+import db_connection.Loader;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.sql.Connection;
 import java.util.*;
 import java.util.logging.Level;
 
@@ -49,12 +51,15 @@ public class BuyerAgent extends Agent implements Serializable {
     private long durationInMilli;
     private long delayToMinimizeInMilli;
     private Proposal proposal;
+    private Loader db;
 //    private final String role = "Buyer";
 
     @Override
     protected void setup() {
         createLogger();
         initiateParameters();
+        db = new Loader();
+        db.establishConnection("buyer");
         // Read the maximum cost as argument
         Object[] args = getArguments();
         if (args != null && args.length > 0) {
