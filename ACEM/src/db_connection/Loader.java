@@ -1,11 +1,6 @@
 package db_connection;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
+import java.sql.*;
 
 /**
  * Created by Luis on 18/04/2017.
@@ -21,7 +16,7 @@ public class Loader {
     /**
      * TODO: add argument (table(s) to consult
      */
-    public void establishConnection(String role){
+    public void establishConnection(){
         try {
             // The newInstance() call is a work around for some
             // broken Java implementations
@@ -32,7 +27,6 @@ public class Loader {
         try {
             //user and password should be arguments, but to test they're hardcoded
             conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/thesis?useSSL=false","root","luisreis_1992");
-            fetchDataBase(role);
             // Do something with the Connection
         } catch (SQLException e) {
             e.printStackTrace();
@@ -61,22 +55,21 @@ public class Loader {
         }
     }
 
-    public void fetchDataBase(String role){
+    public ResultSet fetchDataBase(String query){
         try {
             stmt = conn.createStatement();
-            if("buyer".equals(role)){
+
 //                rs = stmt.executeQuery("select * from buyer where origin = 'ORY' ");
-            }
-            if("seller".equals(role)){
 //                rs = stmt.executeQuery("select rank,salary from crew_member where `\uFEFFcrew_member_number`= '16358.4' ");
-                rs = stmt.executeQuery("select `\uFEFFtail_number` from aircraft where aircraft_model1 = '319' ");
-            }
+//                rs = stmt.executeQuery("select `\uFEFFtail_number` from aircraft where aircraft_model1 = '319' ");
+            rs = stmt.executeQuery(query);
             // Now do something with the ResultSet ....
-            handleDataBaseFetchResults();
-            endConnection();
+//            handleDataBaseFetchResults();
+//            endConnection();
         } catch (SQLException e) {
             e.printStackTrace();
         }
+        return rs;
     }
 
     private void handleDataBaseFetchResults() {

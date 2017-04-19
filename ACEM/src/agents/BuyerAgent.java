@@ -1,6 +1,7 @@
 package agents;
 
 
+import db_connection.Loader;
 import hirondelle.date4j.DateTime;
 import jade.core.AID;
 import jade.core.Agent;
@@ -17,11 +18,13 @@ import utils.Aircraft;
 import utils.CrewMember;
 import utils.Log;
 import utils.Resource;
-import db_connection.Loader;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.sql.Connection;
+import java.sql.Array;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
 import java.util.*;
 import java.util.logging.Level;
 
@@ -41,6 +44,12 @@ public class BuyerAgent extends Agent implements Serializable {
     private DateTime scheduledDeparture;
     private DateTime flightDuration;
     private DateTime flightDelay;
+    private String origin = "";
+    private String  destiantion = "";
+    private String fleet = "";
+    private double aircraftDisruptionCost = 0;
+    private double creDisruptionCost = 0;
+    private int total_pax = 0;
     private String company = "";
     private ArrayList<AID> sellers = new ArrayList<>();
     private int negotiationParticipants;
@@ -51,15 +60,13 @@ public class BuyerAgent extends Agent implements Serializable {
     private long durationInMilli;
     private long delayToMinimizeInMilli;
     private Proposal proposal;
-    private Loader db;
+    private Loader db = new Loader();
 //    private final String role = "Buyer";
 
     @Override
     protected void setup() {
         createLogger();
         initiateParameters();
-        db = new Loader();
-        db.establishConnection("buyer");
         // Read the maximum cost as argument
         Object[] args = getArguments();
         if (args != null && args.length > 0) {
@@ -372,7 +379,42 @@ public class BuyerAgent extends Agent implements Serializable {
     private void initiateParameters() {
         /**
          * Connect to DB and read values
+         * Buyer receives the disruption data as argument
+         * this method converts the data received to the respective data type
          */
+        String query ="SELECT origin, destination, scheduled_time_of_departure, departure_delay_in_minutes, \n" +
+                "estimated_trip_time, total_pax, crew_res_type, cost_disr_aircraft, cost_disr_crew\n" +
+                "FROM thesis.buyer\n" +
+                "WHERE scheduled_time_of_departure LIKE '2017-04-04 09:15:00';";
+        db.establishConnection();
+        ResultSet rs = db.fetchDataBase(query);
+        System.out.println("Result Set =   " + rs);
+        ArrayList<String> pokemon = new ArrayList<>();
+        if (rs != null) {
+            ResultSetMetaData rsmd;
+            try {
+                rsmd = rs.getMetaData();
+                int columnsNumber = rsmd.getColumnCount();
+                while (rs.next()) {
+                    for (int i = 1; i <= columnsNumber; i++) {
+                        String columnValue = rs.getString(i);
+                        System.out.println(rsmd.getColumnLabel(i) + " : " + rs.getString(i));
+                        pokemon.add(rs.getString(i));
+                    }
+                    System.out.println("");
+                }
+            } catch (SQLException e) {
+                // handle any errors
+                System.out.println("SQLException: " + e.getMessage());
+                System.out.println("SQLState: " + e.getSQLState());
+                System.out.println("VendorError: " + e.getErrorCode());
+            }
+        }
+        for(int j = 0; j < pokemon.size(); j++){
+            System.out.println("Olha aqui um pokemon");
+            System.out.println(pokemon.get(j));
+        }
+
         scheduledDeparture = new DateTime("2017-03-09 10:00:00");
         flightDelay = new DateTime("2017-03-09 10:45:00");
         flightDuration = new DateTime("2017-03-09 18:00:00");
@@ -387,7 +429,6 @@ public class BuyerAgent extends Agent implements Serializable {
         cm1.setDelay(delayToMinimizeInMilli + 360000);
         resourcesMissing.add(a1);
         resourcesMissing.add(cm1);
-
     }
 
     private void takeDown(Agent a) {

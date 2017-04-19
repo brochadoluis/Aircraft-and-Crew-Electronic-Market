@@ -78,8 +78,6 @@ public class SellerAgent extends Agent implements Serializable{
     @Override
     protected void setup() {
         // Build the description used as template for the subscription
-        db = new Loader();
-        db.establishConnection("seller");
         createLogger();
         createDataBaseFile(getLocalName() + " Database File ");
         DFAgentDescription dfd;
@@ -496,6 +494,12 @@ public class SellerAgent extends Agent implements Serializable{
     private ArrayList<ArrayList<Resource>> getAvailableMatchingResources(ArrayList<Resource> askedResources) {
         ArrayList<Resource> availableResources = new ArrayList<>();
         ArrayList<ArrayList<Resource>> allResourcesCombinations = new ArrayList<>();
+
+        /*db = new Loader();
+        db.establishConnection();
+        convert ResultSet to ArrayList?
+                            */
+
         /**
          * For each askedResource, create an ArrayList<Resource> where the resource to fetch in the DB
          * is askedResource.getClass (Switch here to prepare the query?)
