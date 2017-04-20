@@ -47,14 +47,14 @@ public class Market {
                 "agents.SellerAgent", new Object[0]);
 
         Object[] arguments = new Object[1];
-        arguments[0] = 100000.12;
+        arguments[0] = "CSTTJ";
         AgentController buyer = mainContainer.createNewAgent("Buyer",
                 "agents.BuyerAgent", arguments);
         //AgentController buyer2 = mainContainer.createNewAgent("Buyer2",
           //      "agents.BuyerAgent", new Object[0]);
 
         seller1.start();
-        seller2.start();
+//        seller2.start();
 //        seller3.start();
 //        seller4.start();
 //        seller5.start();

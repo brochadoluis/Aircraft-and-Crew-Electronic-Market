@@ -21,7 +21,6 @@ import utils.Resource;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.sql.Array;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
@@ -42,35 +41,41 @@ public class BuyerAgent extends Agent implements Serializable {
     private ArrayList<Resource> resourcesMissing = new ArrayList<>();
     private double maximumDisruptionCost;
     private DateTime scheduledDeparture;
-    private DateTime flightDuration;
-    private DateTime flightDelay;
+    private DateTime tripTime;
+    private String resourceType = "";
     private String origin = "";
     private String  destiantion = "";
     private String fleet = "";
     private double aircraftDisruptionCost = 0;
-    private double creDisruptionCost = 0;
     private int total_pax = 0;
+    private int delayInMinutes = 0;
+    private double crewDisruptionCost = 0;
     private String company = "";
     private ArrayList<AID> sellers = new ArrayList<>();
     private int negotiationParticipants;
     private Integer round = 0;
     private long scheduledDepartureMilli;
-    private long flightDurationMilli;
-    private long flightDelayMilli;
-    private long durationInMilli;
-    private long delayToMinimizeInMilli;
+    private long tripTimeMilli;
+    private long delayInMilli;
     private Proposal proposal;
+    private String resourceAffected = "";
     private Loader db = new Loader();
+    private int  nCPT = 0;
+    private int  nOPT = 0;
+    private int  nSCC = 0;
+    private int  nCC = 0;
+    private int  nCAB = 0;
 //    private final String role = "Buyer";
 
     @Override
     protected void setup() {
         createLogger();
-        initiateParameters();
         // Read the maximum cost as argument
         Object[] args = getArguments();
         if (args != null && args.length > 0) {
-            maximumDisruptionCost = Double.parseDouble(String.valueOf(args[0]));
+            resourceAffected = String.valueOf(args[0]);
+            initiateParameters();
+
             logger.log(Level.INFO, "Worst case scenario {0} € as cost.", maximumDisruptionCost);
             DFServices dfs = registerInDFS();
             findReceivers(dfs);
@@ -205,7 +210,7 @@ public class BuyerAgent extends Agent implements Serializable {
         cfp.setScheduledDeparture(1489053600000L);
         long maxDelay = getMaxDelay(resourcesMissing);
         cfp.setDelay(maxDelay);
-        cfp.setDuration(durationInMilli);
+        cfp.setDuration(tripTimeMilli);
         ACLMessage msg = new ACLMessage(ACLMessage.CFP);
         for (AID seller : sellers) {
             msg.addReceiver(seller);
@@ -379,30 +384,67 @@ public class BuyerAgent extends Agent implements Serializable {
     private void initiateParameters() {
         /**
          * Connect to DB and read values
-         * Buyer receives the disruption data as argument
-         * this method converts the data received to the respective data type
+         * Buyer receives the resource affected and the date  as argument
+         * this method gets the
          */
-        String query ="SELECT origin, destination, scheduled_time_of_departure, departure_delay_in_minutes, \n" +
-                "estimated_trip_time, total_pax, crew_res_type, cost_disr_aircraft, cost_disr_crew\n" +
-                "FROM thesis.buyer\n" +
-                "WHERE scheduled_time_of_departure LIKE '2017-04-04 09:15:00';";
         db.establishConnection();
+        String query = getResourceType(resourceAffected);
         ResultSet rs = db.fetchDataBase(query);
-        System.out.println("Result Set =   " + rs);
-        ArrayList<String> pokemon = new ArrayList<>();
-        if (rs != null) {
-            ResultSetMetaData rsmd;
+//        if (rs != null) {
+//            ResultSetMetaData rsmd;
+//            try {
+//                rsmd = rs.getMetaData();
+//                int columnsNumber = rsmd.getColumnCount();
+//                while (rs.next()) {
+//                    extractQueryData(rs, rsmd, columnsNumber);
+//                }
+//            } catch (SQLException e) {
+//                // handle any errors
+//                System.out.println("SQLException: " + e.getMessage());
+//                System.out.println("SQLState: " + e.getSQLState());
+//                System.out.println("VendorError: " + e.getErrorCode());
+//            }
+//        }
+
+        DateTime dateTimeTripTime = scheduledDeparture.plus(0,0,0,tripTime.getHour(),tripTime.getMinute(),tripTime.getSecond(),0,DateTime.DayOverflow.FirstDay);
+        System.out.println("tt2 " + dateTimeTripTime);
+        scheduledDepartureMilli = scheduledDeparture.getMilliseconds(TimeZone.getTimeZone("GMT"));
+        System.out.println("scheduledDeparture " + scheduledDeparture);
+        System.out.println("scheduledDepartureMilli " + scheduledDepartureMilli);
+        tripTimeMilli = dateTimeTripTime.getMilliseconds(TimeZone.getTimeZone("GMT"));
+        System.out.println("tripTimeMilli " + tripTimeMilli );
+        delayInMilli =  delayInMinutes * 60 * 1000;
+        System.out.println("delayInMilli =  delayInMinutes * 60 * 1000; " + delayInMilli );
+        Resource a1 = new Aircraft("Boeing 777", total_pax);
+        Resource cm1 = new CrewMember(2, "Pilot", "English A2");
+        a1.setDelay(delayInMilli);
+        cm1.setDelay(delayInMilli);
+        resourcesMissing.add(a1);
+        resourcesMissing.add(cm1);
+    }
+
+    private void extractQueryData(ResultSet rs, ResultSetMetaData rsmd, int columnsNumber, String resourceType) throws SQLException {
+        for (int i = 1; i <= columnsNumber; i++) {
+            if ("aircraft".equals(resourceType)){
+                queryToAirCraft(rs, rsmd, i);
+            }
+//                queryToResource(rs, rsmd, i);
+            System.out.println(rsmd.getColumnLabel(i) + " : " + rs.getString(i));
+//            queryToResource(rs, rsmd, i);
+        }
+        System.out.println("");
+    }
+
+    private String getResourceType(String resourceAffected) {
+        String dbRow = "SELECT * FROM thesis.buyer WHERE \uFEFFresource_affected LIKE '" + resourceAffected + "';";
+        ResultSet unidentifiedResource = db.fetchDataBase(dbRow);
+        String preparedQuery = "";
+        if (unidentifiedResource != null){
             try {
-                rsmd = rs.getMetaData();
-                int columnsNumber = rsmd.getColumnCount();
-                while (rs.next()) {
-                    for (int i = 1; i <= columnsNumber; i++) {
-                        String columnValue = rs.getString(i);
-                        System.out.println(rsmd.getColumnLabel(i) + " : " + rs.getString(i));
-                        pokemon.add(rs.getString(i));
-                    }
-                    System.out.println("");
-                }
+                unidentifiedResource.next();
+                resourceType = unidentifiedResource.getString("missing_resource");
+                System.out.println("Resource Type  " + resourceType);
+                preparedQuery = prepareQuery(resourceType, resourceAffected);
             } catch (SQLException e) {
                 // handle any errors
                 System.out.println("SQLException: " + e.getMessage());
@@ -410,25 +452,82 @@ public class BuyerAgent extends Agent implements Serializable {
                 System.out.println("VendorError: " + e.getErrorCode());
             }
         }
-        for(int j = 0; j < pokemon.size(); j++){
-            System.out.println("Olha aqui um pokemon");
-            System.out.println(pokemon.get(j));
-        }
+        return preparedQuery;
+    }
 
-        scheduledDeparture = new DateTime("2017-03-09 10:00:00");
-        flightDelay = new DateTime("2017-03-09 10:45:00");
-        flightDuration = new DateTime("2017-03-09 18:00:00");
-        scheduledDepartureMilli = scheduledDeparture.getMilliseconds(TimeZone.getTimeZone("GMT"));
-        flightDelayMilli = flightDelay.getMilliseconds(TimeZone.getTimeZone("GMT"));
-        flightDurationMilli = flightDuration.getMilliseconds(TimeZone.getTimeZone("GMT"));
-        durationInMilli = flightDurationMilli - scheduledDepartureMilli;
-        delayToMinimizeInMilli = scheduledDepartureMilli - flightDelayMilli;
-        Resource a1 = new Aircraft("Boeing 777", 396);
-        Resource cm1 = new CrewMember(2, "Pilot", "English A2");
-        a1.setDelay(delayToMinimizeInMilli);
-        cm1.setDelay(delayToMinimizeInMilli + 360000);
-        resourcesMissing.add(a1);
-        resourcesMissing.add(cm1);
+    private String prepareQuery(String resourceType, String resourceAffected) {
+        String query = "";
+        if ("aircraft".equals(resourceType)) {
+            //Aircraft + crew are need
+            query = "SELECT origin, destination, scheduled_time_of_departure, departure_delay_in_minutes, \n" +
+                    "estimated_trip_time, total_pax, crew_res_type, cost_disr_aircraft, cost_disr_crew,\n" +
+                    "CPT, OPT, SCC, CC, CAB\n" +
+                    "FROM thesis.buyer\n" +
+                    "WHERE \uFEFFresource_affected LIKE '" + resourceAffected + "';";
+            ResultSet rs = db.fetchDataBase(query);
+            if (rs != null) {
+                ResultSetMetaData rsmd;
+                try {
+                    rsmd = rs.getMetaData();
+                    while (rs.next())
+                        extractQueryData(rs, rsmd, rsmd.getColumnCount(), resourceType);
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+            if ("all crew".equals(resourceType)) {
+                // All crew is needed
+            } else {
+                //only 1 crew member type, or more than 1?
+            }
+        }
+        return query;
+    }
+
+    private void queryToAirCraft(ResultSet rs, ResultSetMetaData rsmd, int index) throws SQLException {
+        switch (rsmd.getColumnLabel(index)){
+            case "origin":
+                origin = rs.getString(index);
+                break;
+            case "destination":
+                destiantion = rs.getString(index);
+                break;
+            case "scheduled_time_of_departure":
+                scheduledDeparture = new DateTime(rs.getString(index));
+                break;
+            case "departure_delay_in_minutes":
+                delayInMinutes = Integer.parseInt(rs.getString(index));
+                break;
+            case "estimated_trip_time":
+                tripTime = new DateTime("0" + rs.getString(index));
+                break;
+            case "total_pax":
+                total_pax = Integer.parseInt(rs.getString(index));
+                break;
+            case "crew_res_type":
+                fleet = rs.getString(index);
+                break;
+            case "cost_disr_aircraft":
+                aircraftDisruptionCost = Double.parseDouble(rs.getString(index).replace(',','.'));
+                break;
+            case "CPT":
+                nCPT = Integer.parseInt(rs.getString(index));
+                break;
+            case "OPT":
+                nOPT = Integer.parseInt(rs.getString(index));
+                break;
+            case "SCC":
+                nSCC = Integer.parseInt(rs.getString(index));
+                break;
+            case "CC":
+                nCC = Integer.parseInt(rs.getString(index));
+                break;
+            case "CAB":
+                nCAB = Integer.parseInt(rs.getString(index));
+                break;
+            default:
+                break;
+        }
     }
 
     private void takeDown(Agent a) {

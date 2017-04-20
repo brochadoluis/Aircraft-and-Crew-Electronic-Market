@@ -658,6 +658,8 @@ public class SellerAgent extends Agent implements Serializable{
         resourcesToBeLeased = (ArrayList<Resource>) cfp.getResourcesProposed();
         scheduledDeparture = cfp.getScheduledDeparture();
         delay = cfp.getDelay();
+        System.out.println("Departure " + scheduledDeparture);
+        System.out.println("Delay " + delay);
         return resourcesToBeLeased;
     }
 }
