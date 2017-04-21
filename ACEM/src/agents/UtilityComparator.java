@@ -1,9 +1,7 @@
 package agents;
 
-import utils.Resource;
+import utils.Flight;
 
-import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Comparator;
 
 /**
@@ -13,14 +11,14 @@ import java.util.Comparator;
 /**
  *  Nao sera um comparator de double? Visto que a utilidade sera um double
  */
-public class PriceComparator implements Comparator<ArrayList<Resource>> {
+public class UtilityComparator implements Comparator<Flight> {
     private SellerAgent sa = new SellerAgent();
 
     @Override
-    public int compare(ArrayList<Resource> resources1, ArrayList<Resource> resources2) {
+    public int compare(Flight f1, Flight f2) {
         double r1TotalPrice, r2TotalPrice;
-        r1TotalPrice = sa.sumResourcesPrice(resources1);
-        r2TotalPrice = sa.sumResourcesPrice(resources2);
+        r1TotalPrice = sa.sumResourcesPrice(f1);
+        r2TotalPrice = sa.sumResourcesPrice(f1);
 
         if(r1TotalPrice < r2TotalPrice)
             return 1;

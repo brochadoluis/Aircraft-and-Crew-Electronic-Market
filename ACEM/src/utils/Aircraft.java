@@ -20,8 +20,8 @@ public class Aircraft implements Serializable {
 
     public Aircraft(){}
 
-    public Aircraft(String type, Integer capacity) {
-        this.type = type;
+    public Aircraft(/*String type, */Integer capacity) {
+//        this.type = type;
         this.capacity = capacity;
     }
 

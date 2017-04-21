@@ -18,15 +18,14 @@ import jade.util.Logger;
 import utils.Aircraft;
 import utils.CrewMember;
 import utils.Flight;
-import utils.Resource;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.PriorityQueue;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
+import java.util.*;
 import java.util.logging.Level;
 
 
@@ -35,18 +34,27 @@ import java.util.logging.Level;
  * Created by Luis on 21/02/2017.
  */
 public class SellerAgent extends Agent implements Serializable{
-    /**
-     * * Company's Identif ier: @company
-     */
+    private final String OK = "OK";
+    private final String LOWER = "LOWER";
+    private final String MUCH_LOWER = "MUCH LOWER";
+    private final String CPT = "cpt";
+    private final String OPT = "opt";
+    private final String SCB = "scb";
+    private final String CCB = "ccb";
+    private final String CAB = "cab";
+
     private final Logger logger = jade.util.Logger.getMyLogger(this.getClass().getName());
-    //    private final String role = "Seller";
-    private String company = "";
+    ArrayList<Flight> solutions = new ArrayList<>();
     private DFServices dfs = new DFServices();
     private PriorityQueue<Flight> flightsQueue = null;
-    ArrayList<Flight> solutions = new ArrayList<>();
     private Integer round = 0;
     //HashMap<round,proposal>
     private HashMap<Integer,Proposal> negotiationHistoric = new HashMap<>();
+    /**
+     * * Company's Identif ier: @company
+     */
+    //    private final String role = "Seller";
+    private String company = "";
     /**
      * Price range between:
      * min = displacement cost + 50% displacement cost
@@ -62,11 +70,8 @@ public class SellerAgent extends Agent implements Serializable{
      */
     private long scheduledDeparture;
     private long delay;
-    private long duration;
+    private long tripTime;
     private long maxAvailability;
-    private final String OK = "OK";
-    private final String LOWER = "LOWER";
-    private final String MUCH_LOWER = "MUCH LOWER";
     private ArrayList<AID> participants = new ArrayList<>();
     private File dataFile;
     private Data dataSet = null;
@@ -74,6 +79,18 @@ public class SellerAgent extends Agent implements Serializable{
     private CBR cbr;
     private boolean recencyOutcome = false;
     private Loader db;
+    private int tail_number;
+    private double atc_avg_cost_nautical_mile;
+    private double maintenance_avg_cost_minute;
+    private double fuel_avg_cost_minute;
+    private double airport_handling_cost;
+    private int nCPT;
+    private int nOPT;
+    private int nSCB;
+    private int nCCB;
+    private int nCAB;
+    private int minCapacity;
+    private String fleet;
 
     @Override
     protected void setup() {
@@ -174,7 +191,7 @@ public class SellerAgent extends Agent implements Serializable{
                         logger.log(Level.INFO, "Agent {0}: Searching for resources to lease ", getLocalName());
                         logger.log(Level.INFO, "Agent {0}: Proposing", getLocalName());
                         //Fetch funtion, writes to an ArrayList the resources available
-                /*        solutions = getAvailableMatchingResources(askedFlight);
+                        solutions = getAvailableMatchingResources(askedFlight);
                         putResourcesIntoQueue(solutions);
                         queueHead = flightsQueue.peek();
                         double displacementCosts = sumResourcesPrice(queueHead);
@@ -183,7 +200,7 @@ public class SellerAgent extends Agent implements Serializable{
                         long worstAvailability = getWorstAvailability(queueHead);
                         proposal = new Proposal(maximumPrice, worstAvailability, queueHead, this.getAgent().getAID());
                         negotiationHistoric.put(round, proposal);
-*/
+
                         return proposal;
                     }
 
@@ -300,7 +317,7 @@ public class SellerAgent extends Agent implements Serializable{
     }
 
     private Proposal applyCommentsToProposal(Proposal rejectedProposal) {
-//        ArrayList<Resource> queueHead = flightsQueue.poll();
+        Flight queueHead = flightsQueue.poll();
 //        double displacementCosts = sumResourcesPrice(queueHead);
         ArrayList<String> comments = findSimilarCases(rejectedProposal);
         System.out.println("Comments in Apply Comments to Proposal " + comments);
@@ -351,15 +368,15 @@ public class SellerAgent extends Agent implements Serializable{
                 break;
         }
         // Aqui entra a aprendizagem dos agentes
-        /*if (hasBetterUtility(rejectedProposal, queueHead)){
+        if (hasBetterUtility(rejectedProposal, queueHead)){
             flightsQueue.add(queueHead);
         }
         else{
-            *//**
+            /**
              * TODO: something here
-             *//*
+             */
         }
-        proposal = new Proposal(rejectedProposal.getPrice(), rejectedProposal.getAvailability(), , rejectedProposal.getResourcesProposed(), this.getAID());*/
+        proposal = new Proposal(rejectedProposal.getPrice(), rejectedProposal.getAvailability(), rejectedProposal.getFlight(), this.getAID());
         return proposal;
     }
 
@@ -369,7 +386,7 @@ public class SellerAgent extends Agent implements Serializable{
             System.out.println("negotiationHistoric.get(round - 1) " + negotiationHistoric.get(round - 1));
             System.out.println("Round " + round);
             double previousRoundCaseEvaluation = evaluateOutcome(proposalToEvaluate,rejectedProposal);
-                    int outcomeIndex = dataSet.addOutcome(previousRoundCaseEvaluation);
+            int outcomeIndex = dataSet.addOutcome(previousRoundCaseEvaluation);
             System.out.println();
             ArrayList<String> newCase = createCase(rejectedProposal);
             ArrayList<String> action = new ArrayList<>();
@@ -451,7 +468,7 @@ public class SellerAgent extends Agent implements Serializable{
         return null;
     }
 
-    private boolean hasBetterUtility(Proposal rejectedProposal, ArrayList<Resource> peek) {
+    private boolean hasBetterUtility(Proposal rejectedProposal, Flight peek) {
         return (utilityCalculation(rejectedProposal.getPrice()) > (utilityCalculation(sumResourcesPrice(peek))));
     }
 
@@ -475,11 +492,10 @@ public class SellerAgent extends Agent implements Serializable{
         }*/
     }
 
-    protected double sumResourcesPrice(ArrayList<Resource> resourcesToBeProposed){
+    protected double sumResourcesPrice(Flight flightToBeProposed){
         double sum = 0;
-        for (Resource aResource:resourcesToBeProposed) {
-            sum += aResource.getPrice();
-        }
+        //deprecated method
+        sum += flightToBeProposed.getPrice();
         return sum;
     }
 
@@ -491,14 +507,24 @@ public class SellerAgent extends Agent implements Serializable{
      * using the Utility Comparator
      * @param askedFlight: Resources received in ACL Message
      */
-    private ArrayList<ArrayList<Resource>> getAvailableMatchingResources(ArrayList<Resource> askedFlight) {
-        ArrayList<Resource> availableResources = new ArrayList<>();
-        ArrayList<ArrayList<Resource>> allResourcesCombinations = new ArrayList<>();
+    private ArrayList<Flight> getAvailableMatchingResources(Flight askedFlight) {
+        ArrayList<Flight> availableResources = new ArrayList<>();
+//        ArrayList<ArrayList<Resource>> allResourcesCombinations = new ArrayList<>();
+        Flight f1 = new Flight();
+        Aircraft a1 = new Aircraft(396);
+        a1.setAvailability(0L);
+        f1.setAircraft(a1);
+        CrewMember cm1 = new CrewMember(2, "Pilot", "English A2");
+        cm1.setAvailability(129000L);
+        f1.addCrewMember(cm1);
+        System.out.println("Available resources "+ f1);
+        f1.printFlgiht();
+        availableResources.add(f1);
 
-        /*db = new Loader();
+        db = new Loader();
         db.establishConnection();
-        convert ResultSet to ArrayList?
-                            */
+        availableResources = findSimilarResources(askedFlight);
+//        convert ResultSet to ArrayList?
 
         /**
          * For each askedResource, create an ArrayList<Resource> where the resource to fetch in the DB
@@ -532,10 +558,9 @@ public class SellerAgent extends Agent implements Serializable{
          * if >0 means that the resource isnt good -1 - (-3) 2 => -3 is later than -1
          * Ideal scenario, dif ference = delay
          * Otherwise, the more negative the better.
-         *//*
-        Resource r1  = new Aircraft("Boeing 777", 396);
-        r1.setPrice(23456.3D);
-        r1.setAvailability(0L);
+         */
+
+        /*
         Resource r2  = new Aircraft("Boeing 777", 396);
         r2.setPrice(23543.23D);
         r2.setAvailability(10000L);
@@ -545,9 +570,7 @@ public class SellerAgent extends Agent implements Serializable{
         Resource r4 = new Aircraft("Airbus A330-200 Freighter", 407);
         r4.setPrice(451123.51D);
         r4.setAvailability(9000L);
-        Resource r5 = new CrewMember(2, "Pilot", "English A2");
-        r5.setPrice(2543.23D);
-        r5.setAvailability(129000L);
+
         Resource r6 = new CrewMember(2, "Pilot", "English A2");
         r6.setPrice(65333.21D);
         r6.setAvailability(0L);
@@ -562,9 +585,10 @@ public class SellerAgent extends Agent implements Serializable{
                 break;
             default:
                 break;
-        }
+        }*/
         logger.log(Level.INFO,"Available Resources {0}", availableResources);
         //The query returns resources within the parameters, so there's no reason to compare
+/*
 
         for (int i = 0; i < availableResources.size(); i++) {
             for (int j = i; j < availableResources.size(); j++) {
@@ -577,23 +601,194 @@ public class SellerAgent extends Agent implements Serializable{
                     continue;
                 }
             }
-        }*/
-        return allResourcesCombinations;
+        }
+        return allResourcesCombinations;*/
+        return new ArrayList<>();
+    }
+
+    private ArrayList<Flight> findSimilarResources(Flight askedFlight) {
+        String query = "";
+        Boolean isAircraftNeeded = false;
+        ArrayList<Flight> matchingResources = new ArrayList<>();
+        if (askedFlight.getAircraft() != null){
+            //prepare query for aircraft
+            query = "SELECT \uFEFFtail_number, atc_avg_cost_nautical_mile,\n" +
+                    "maintenance_avg_cost_minute, fuel_avg_cost_minute,\n" +
+                    "airport_handling_cost, cpt, opt, scb, ccb, cab, capacity, fleet\n" +
+                    "FROM `thesis`.`aircraft`\n" +
+                    "WHERE capacity >= "+ askedFlight.getAircraft().getCapacity() + "\n" +
+                    "AND fleet = '"+ askedFlight.getFleet()+"';\n";
+            isAircraftNeeded = true;
+
+
+        }
+        else if(!askedFlight.getCrewMembers().isEmpty()){
+            //prepare query for crew members
+        }
+        ResultSet rs = db.fetchDataBase(query);
+        if (rs != null) {
+            ResultSetMetaData rsmd;
+            try {
+                rsmd = rs.getMetaData();
+                while (rs.next()) {
+                    matchingResources = extractQueryData(rs, rsmd, rsmd.getColumnCount(), isAircraftNeeded);
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+//            addFlightToFlightsQueue(disruptedFlight,resourceType);
+        }
+        return null;
+    }
+
+    private ArrayList<Flight> extractQueryData(ResultSet rs, ResultSetMetaData rsmd, int columnsNumber, boolean isAircraftNeeded) throws SQLException {
+        ArrayList<Flight> flights = new ArrayList<>();
+        for (int i = 1; i <= columnsNumber; i++) {
+            queryToVariables(rs, rsmd, i, isAircraftNeeded);
+            if(isAircraftNeeded){
+//               Adiciona tudo
+                Aircraft matchingAircraft = new Aircraft(minCapacity);
+                Flight flight = new Flight();
+                flight.setAircraft(matchingAircraft);
+                //Another query needed!
+                addCrewMembersToFlight(flight);
+//                calculateFlightPrice(flight);
+            }
+            else {
+//                Adiciona so crew
+            }
+            System.out.println(rsmd.getColumnLabel(i) + " : " + rs.getString(i));
+        }
+        return flights;
+    }
+
+    private void addCrewMembersToFlight(Flight flight) {
+        addCrewMemberToFlight(flight, CPT);
+        addCrewMemberToFlight(flight, OPT);
+        addCrewMemberToFlight(flight, SCB);
+        addCrewMemberToFlight(flight, CCB);
+        addCrewMemberToFlight(flight, CAB);
+
+        //Adicionar tambem o preço e(depois de os somar) e guardar numa variavel do buyer e nao do voo!!!!!
+    }
+
+    private void addCrewMemberToFlight(Flight flight, String resourceType) {
+        if (CPT.equalsIgnoreCase(resourceType)){
+            CrewMember cm = setCrewMemberVariables(flight, nCPT, CPT);
+            if (cm != null) {
+                System.out.println("Cm " + cm.getCategory());
+                flight.addCrewMember(cm);
+            }
+        }
+        if (OPT.equalsIgnoreCase(resourceType)){
+            CrewMember cm = setCrewMemberVariables(flight, nOPT, OPT);
+            if (cm != null)
+                flight.addCrewMember(cm);
+        }
+        if (SCB.equalsIgnoreCase(resourceType)) {
+            CrewMember cm = setCrewMemberVariables(flight, nSCB, SCB);
+            if (cm != null)
+                flight.addCrewMember(cm);
+        }
+        if (CCB.equalsIgnoreCase(resourceType)) {
+            CrewMember cm = setCrewMemberVariables(flight, nCCB, CCB);
+            if (cm != null)
+                flight.addCrewMember(cm);
+        }
+        if (CAB.equalsIgnoreCase(resourceType)){
+            CrewMember cm = setCrewMemberVariables(flight, nCAB, CAB);
+            if (cm != null)
+                flight.addCrewMember(cm);
+        }
+    }
+    private CrewMember setCrewMemberVariables(Flight flight, int crewMemberNumber, String crewMemberCategory) {
+        if (crewMemberNumber != 0) {
+            CrewMember cm = new CrewMember();
+            cm.setNumber(crewMemberNumber);
+            cm.setCategory(crewMemberCategory);
+            return cm;
+        }
+        return null;
+    }
+
+    private void queryToVariables(ResultSet rs, ResultSetMetaData rsmd, int index, boolean isAircraftNeeded) throws SQLException {
+        if (isAircraftNeeded) {
+            switch (rsmd.getColumnLabel(index)) {
+                case "tail_number":
+                    tail_number = Integer.parseInt(rs.getString(index));
+                    break;
+                case "atc_avg_cost_nautical_mile":
+                    atc_avg_cost_nautical_mile = Double.parseDouble(rs.getString(index).replace(',', '.'));
+                    break;
+                case "maintenance_avg_cost_minute":
+                    maintenance_avg_cost_minute = Double.parseDouble(rs.getString(index).replace(',', '.'));
+                    break;
+                case "fuel_avg_cost_minute":
+                    fuel_avg_cost_minute = Double.parseDouble(rs.getString(index).replace(',', '.'));
+                    break;
+                case "airport_handling_cost":
+                    airport_handling_cost = Double.parseDouble(rs.getString(index).replace(',', '.'));
+                    break;
+                case "capacity":
+                    minCapacity = Integer.parseInt(rs.getString(index));
+                    break;
+                case "fleet":
+                    fleet = rs.getString(index);
+                    break;
+                case CPT:
+                    nCPT = Integer.parseInt(rs.getString(index));
+                    break;
+                case OPT:
+                    nOPT = Integer.parseInt(rs.getString(index));
+                    break;
+                case SCB:
+                    nSCB = Integer.parseInt(rs.getString(index));
+                    break;
+                case CCB:
+                    nCCB = Integer.parseInt(rs.getString(index));
+                    break;
+                case CAB:
+                    nCAB = Integer.parseInt(rs.getString(index));
+                    break;
+                default:
+                    break;
+            }
+        } else {
+            switch (rsmd.getColumnLabel(index)) {
+                case CPT:
+                    nCPT = Integer.parseInt(rs.getString(index));
+                    break;
+                case OPT:
+                    nOPT = Integer.parseInt(rs.getString(index));
+                    break;
+                case SCB:
+                    nSCB = Integer.parseInt(rs.getString(index));
+                    break;
+                case CCB:
+                    nCCB = Integer.parseInt(rs.getString(index));
+                    break;
+                case CAB:
+                    nCAB = Integer.parseInt(rs.getString(index));
+                    break;
+                default:
+                    break;
+            }
+        }
     }
 
     //Return peek or element from queue
-    private ArrayList<Resource> putResourcesIntoQueue(ArrayList<ArrayList<Resource>> solutions) {
+    private Flight putResourcesIntoQueue(ArrayList<Flight> solutions) {
         if (solutions.isEmpty()) {
             logger.log(Level.INFO,"Resources not available");
             //exits negotiation by sending refuse
         }
         else{
             int queueSize = solutions.size();
-            Comparator<ArrayList<Resource>>  comparator = new PriceComparator();
+            Comparator<Flight>  comparator = new UtilityComparator();
 
-//            flightsQueue = new PriorityQueue<>(queueSize, comparator );
+            flightsQueue = new PriorityQueue<>(queueSize, comparator );
             for(int i = 0; i < solutions.size(); i++) {
-//                flightsQueue.add(solutions.get(i));
+                flightsQueue.add(solutions.get(i));
             }
             /**
              * Calculates utility
@@ -613,8 +808,7 @@ public class SellerAgent extends Agent implements Serializable{
          * comments applied) with the new top of the queue. If the difference is too small, the head is not added to queue again, and the new
          * top is now the resource under negotiation
          */
-//        return flightsQueue.peek();
-        return null;
+        return flightsQueue.peek();
     }
 
     private double utilityCalculation(double priceOffered) {
@@ -624,22 +818,12 @@ public class SellerAgent extends Agent implements Serializable{
     /**
      * setProposalAvailability method, finds a proposal's worst (higher) availability,
      * among the resources contained in the proposal
-     * @param resources: ArrayList with the resources to be negotiated
+     * @param flight: ArrayList with the resources to be negotiated
      * @return A Long value, corresponding to the worst availability among the resources to be negotiated
      */
-    private long getWorstAvailability(ArrayList<Resource> resources) {
-        long worstAvailability = -1;
-        if (resources.get(0).getAvailability() != null) {
-            worstAvailability = resources.get(0).getAvailability();
-            for (int i = 0; i < resources.size(); i++) {
-                Resource aResource = resources.get(i);
-                worstAvailability = aResource.getAvailability();
-                if (aResource.getAvailability() > worstAvailability) {
-                    worstAvailability = aResource.getAvailability();
-                }
-            }
-        }
-        return worstAvailability;
+    private long getWorstAvailability(Flight flight) {
+        //deprecated? unless its implemented the availability in aircraft and crewmembers
+        return flight.getAircraft().getAvailability();
     }
 
     /**
@@ -657,12 +841,9 @@ public class SellerAgent extends Agent implements Serializable{
             e.printStackTrace();
         }
         disruptedFlight = cfp.getFlight();
-        System.out.println("fligh aircragt " + disruptedFlight.getAircraft());
-        for (CrewMember cm: disruptedFlight.getCrewMembers()) {
-            System.out.println("Cm " + cm);
-        }/*
-        scheduledDeparture = cfp.getScheduledDeparture();
-        delay = cfp.getDelay();*/
+        scheduledDeparture = disruptedFlight.getScheduledDeparture();
+        tripTime = disruptedFlight.getTripTime();
+        delay = disruptedFlight.getDelay();
         System.out.println("Departure " + scheduledDeparture);
         System.out.println("Delay " + delay);
         return disruptedFlight;

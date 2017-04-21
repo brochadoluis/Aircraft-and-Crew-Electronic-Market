@@ -414,21 +414,22 @@ public class BuyerAgent extends Agent implements Serializable {
     private void prepareQuery(String resourceType, String resourceAffected) {
         String query = "";
         if ("aircraft".equals(resourceType)) {
-            //Aircraft + Crew are need
+            //Aircraft + Crew are need, but the agent just asks for an aircraft and the seller knows that the crew is included
             query = "SELECT origin, destination, scheduled_time_of_departure, departure_delay_in_minutes, \n" +
-                    "estimated_trip_time, total_pax, crew_res_type, cost_disr_aircraft, cost_disr_crew,\n" +
-                    "CPT, OPT, SCC, CC, CAB\n" +
+                    "estimated_trip_time, total_pax, crew_res_type, cost_disr_aircraft, cost_disr_crew\n" +
                     "FROM thesis.buyer\n" +
-                    "WHERE \uFEFFresource_affected LIKE '" + resourceAffected + "';";
+                    "WHERE \uFEFFresource_affected = '" + resourceAffected + "';";
         }
-        if ("all crew".equals(resourceType)) {
+        else if ("all crew".equals(resourceType)) {
             // All crew is needed
             query = "SELECT CPT, OPT, SCC, CC, CAB,scheduled_time_of_departure, departure_delay_in_minutes, \n" +
                     "estimated_trip_time, crew_res_type, cost_disr_aircraft, cost_disr_crew\n" +
                     "FROM thesis.buyer\n" +
                     "WHERE \uFEFFresource_affected LIKE '" + resourceAffected + "';";
         }
-        if (CPT.equalsIgnoreCase(resourceType)) {
+        else if (CPT.equalsIgnoreCase(resourceType) || OPT.equalsIgnoreCase(resourceType)
+                || SCC.equalsIgnoreCase(resourceType) || CC.equalsIgnoreCase(resourceType)
+                || CAB.equalsIgnoreCase(resourceType)) {
             //only 1 crew member type, or more than 1?
             query = "SELECT  missing_resource,scheduled_time_of_departure, departure_delay_in_minutes, \n" +
                     "estimated_trip_time, crew_res_type, cost_disr_aircraft, cost_disr_crew, \n" +
@@ -466,7 +467,6 @@ public class BuyerAgent extends Agent implements Serializable {
             Aircraft aircraftNeeded = new Aircraft();
             setAircraftVariables(aircraftNeeded);
             disruptedFlight.setAircraft(aircraftNeeded);
-            addCrew();
             }
         //change to accept one of each
         if (CPT.equalsIgnoreCase(resourceType) || OPT.equalsIgnoreCase(resourceType)
@@ -475,18 +475,14 @@ public class BuyerAgent extends Agent implements Serializable {
             addCrewMemberToFlight(disruptedFlight, resourceType);
         }
         if ("all crew".equalsIgnoreCase(resourceType)){
-            addCrew();
+            addCrewMemberToFlight(disruptedFlight, CPT);
+            addCrewMemberToFlight(disruptedFlight, OPT);
+            addCrewMemberToFlight(disruptedFlight, SCC);
+            addCrewMemberToFlight(disruptedFlight, CC);
+            addCrewMemberToFlight(disruptedFlight, CAB);
 
         }
         //Adicionar tambem o preço e(depois de os somar) e guardar numa variavel do buyer e nao do voo!!!!!
-    }
-
-    private void addCrew() {
-        addCrewMemberToFlight(disruptedFlight, CPT);
-        addCrewMemberToFlight(disruptedFlight, OPT);
-        addCrewMemberToFlight(disruptedFlight, SCC);
-        addCrewMemberToFlight(disruptedFlight, CC);
-        addCrewMemberToFlight(disruptedFlight, CAB);
     }
 
     private void addCrewMemberToFlight(Flight flight, String resourceType) {
@@ -562,19 +558,19 @@ public class BuyerAgent extends Agent implements Serializable {
             case "cost_disr_crew":
                 crewDisruptionCost = Double.parseDouble(rs.getString(index).replace(',','.'));
                 break;
-            case "CPT":
+            case CPT:
                 nCPT = Integer.parseInt(rs.getString(index));
                 break;
-            case "OPT":
+            case OPT:
                 nOPT = Integer.parseInt(rs.getString(index));
                 break;
-            case "SCC":
+            case SCC:
                 nSCC = Integer.parseInt(rs.getString(index));
                 break;
-            case "CC":
+            case CC:
                 nCC = Integer.parseInt(rs.getString(index));
                 break;
-            case "CAB":
+            case CAB:
                 nCAB = Integer.parseInt(rs.getString(index));
                 break;
             default:
