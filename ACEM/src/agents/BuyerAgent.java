@@ -35,6 +35,12 @@ public class BuyerAgent extends Agent implements Serializable {
     private final String LOWER = "LOWER";
     private final String MUCH_LOWER = "MUCH LOWER";
     private final String OK = "OK";
+    private final String CPT = "CPT";
+    private final String OPT = "OPT";
+    private final String SCC = "SCC";
+    private final String CC = "CC";
+    private final String CAB = "CAB";
+
     private final Logger logger = jade.util.Logger.getMyLogger(this.getClass().getName());
     private Log log;
     private Proposal bestProposal = null;
@@ -44,7 +50,7 @@ public class BuyerAgent extends Agent implements Serializable {
     private DateTime tripTime;
     private String resourceType = "";
     private String origin = "";
-    private String  destiantion = "";
+    private String  destination = "";
     private String fleet = "";
     private double aircraftDisruptionCost = 0;
     private int total_pax = 0;
@@ -207,9 +213,9 @@ public class BuyerAgent extends Agent implements Serializable {
     private ACLMessage sendFirstCFP() {
         logger.log(Level.INFO, "Round n (Before first CFP): {0}", round);
         Proposal cfp = new Proposal(0F, 1L, resourcesMissing, this.getAID());
-        cfp.setScheduledDeparture(1489053600000L);
-        long maxDelay = getMaxDelay(resourcesMissing);
-        cfp.setDelay(maxDelay);
+        cfp.setScheduledDeparture(scheduledDepartureMilli);
+//        long maxDelay = getMaxDelay(resourcesMissing);
+        cfp.setDelay(delayInMilli);
         cfp.setDuration(tripTimeMilli);
         ACLMessage msg = new ACLMessage(ACLMessage.CFP);
         for (AID seller : sellers) {
@@ -388,63 +394,34 @@ public class BuyerAgent extends Agent implements Serializable {
          * this method gets the
          */
         db.establishConnection();
-        String query = getResourceType(resourceAffected);
-        ResultSet rs = db.fetchDataBase(query);
-//        if (rs != null) {
-//            ResultSetMetaData rsmd;
-//            try {
-//                rsmd = rs.getMetaData();
-//                int columnsNumber = rsmd.getColumnCount();
-//                while (rs.next()) {
-//                    extractQueryData(rs, rsmd, columnsNumber);
-//                }
-//            } catch (SQLException e) {
-//                // handle any errors
-//                System.out.println("SQLException: " + e.getMessage());
-//                System.out.println("SQLState: " + e.getSQLState());
-//                System.out.println("VendorError: " + e.getErrorCode());
-//            }
-//        }
-
-        DateTime dateTimeTripTime = scheduledDeparture.plus(0,0,0,tripTime.getHour(),tripTime.getMinute(),tripTime.getSecond(),0,DateTime.DayOverflow.FirstDay);
-        System.out.println("tt2 " + dateTimeTripTime);
-        scheduledDepartureMilli = scheduledDeparture.getMilliseconds(TimeZone.getTimeZone("GMT"));
-        System.out.println("scheduledDeparture " + scheduledDeparture);
-        System.out.println("scheduledDepartureMilli " + scheduledDepartureMilli);
-        tripTimeMilli = dateTimeTripTime.getMilliseconds(TimeZone.getTimeZone("GMT"));
-        System.out.println("tripTimeMilli " + tripTimeMilli );
-        delayInMilli =  delayInMinutes * 60 * 1000;
-        System.out.println("delayInMilli =  delayInMinutes * 60 * 1000; " + delayInMilli );
-        Resource a1 = new Aircraft("Boeing 777", total_pax);
-        Resource cm1 = new CrewMember(2, "Pilot", "English A2");
-        a1.setDelay(delayInMilli);
-        cm1.setDelay(delayInMilli);
-        resourcesMissing.add(a1);
-        resourcesMissing.add(cm1);
+        getResourceType(resourceAffected);
     }
 
     private void extractQueryData(ResultSet rs, ResultSetMetaData rsmd, int columnsNumber, String resourceType) throws SQLException {
         for (int i = 1; i <= columnsNumber; i++) {
-            if ("aircraft".equals(resourceType)){
-                queryToAirCraft(rs, rsmd, i);
-            }
-//                queryToResource(rs, rsmd, i);
+//            if ("aircraft".equals(resourceType)){
+            queryToVariables(rs, rsmd, i);
+//            }
             System.out.println(rsmd.getColumnLabel(i) + " : " + rs.getString(i));
-//            queryToResource(rs, rsmd, i);
         }
+        DateTime dateTimeTripTime = scheduledDeparture.plus(0,0,0,tripTime.getHour(),tripTime.getMinute(),tripTime.getSecond(),0,DateTime.DayOverflow.FirstDay);
+        scheduledDepartureMilli = scheduledDeparture.getMilliseconds(TimeZone.getTimeZone("GMT"));
+        tripTimeMilli = dateTimeTripTime.getMilliseconds(TimeZone.getTimeZone("GMT"));
+        delayInMilli = delayInMinutes * 60 * 1000;
+        System.out.println("delayInMilli " + delayInMilli);
         System.out.println("");
     }
 
-    private String getResourceType(String resourceAffected) {
+    private void getResourceType(String resourceAffected) {
         String dbRow = "SELECT * FROM thesis.buyer WHERE \uFEFFresource_affected LIKE '" + resourceAffected + "';";
         ResultSet unidentifiedResource = db.fetchDataBase(dbRow);
-        String preparedQuery = "";
         if (unidentifiedResource != null){
             try {
                 unidentifiedResource.next();
                 resourceType = unidentifiedResource.getString("missing_resource");
                 System.out.println("Resource Type  " + resourceType);
-                preparedQuery = prepareQuery(resourceType, resourceAffected);
+                System.out.println("CPT.equalsIgnoreCase(resourceType) " + CPT.equalsIgnoreCase(resourceType));
+                prepareQuery(resourceType, resourceAffected);
             } catch (SQLException e) {
                 // handle any errors
                 System.out.println("SQLException: " + e.getMessage());
@@ -452,45 +429,117 @@ public class BuyerAgent extends Agent implements Serializable {
                 System.out.println("VendorError: " + e.getErrorCode());
             }
         }
-        return preparedQuery;
     }
 
-    private String prepareQuery(String resourceType, String resourceAffected) {
+    private void prepareQuery(String resourceType, String resourceAffected) {
         String query = "";
         if ("aircraft".equals(resourceType)) {
-            //Aircraft + crew are need
+            //Aircraft + Crew are need
             query = "SELECT origin, destination, scheduled_time_of_departure, departure_delay_in_minutes, \n" +
                     "estimated_trip_time, total_pax, crew_res_type, cost_disr_aircraft, cost_disr_crew,\n" +
                     "CPT, OPT, SCC, CC, CAB\n" +
                     "FROM thesis.buyer\n" +
                     "WHERE \uFEFFresource_affected LIKE '" + resourceAffected + "';";
-            ResultSet rs = db.fetchDataBase(query);
-            if (rs != null) {
-                ResultSetMetaData rsmd;
-                try {
-                    rsmd = rs.getMetaData();
-                    while (rs.next())
-                        extractQueryData(rs, rsmd, rsmd.getColumnCount(), resourceType);
-                } catch (SQLException e) {
-                    e.printStackTrace();
-                }
-            }
-            if ("all crew".equals(resourceType)) {
-                // All crew is needed
-            } else {
-                //only 1 crew member type, or more than 1?
-            }
         }
-        return query;
+        if ("all crew".equals(resourceType)) {
+            // All crew is needed
+            query = "SELECT CPT, OPT, SCC, CC, CAB,scheduled_time_of_departure, departure_delay_in_minutes, \n" +
+                    "estimated_trip_time, crew_res_type, cost_disr_aircraft, cost_disr_crew\n" +
+                    "FROM thesis.buyer\n" +
+                    "WHERE \uFEFFresource_affected LIKE '" + resourceAffected + "';";
+        }
+        if (CPT.equalsIgnoreCase(resourceType)) {
+            //only 1 crew member type, or more than 1?
+            query = "SELECT  missing_resource,scheduled_time_of_departure, departure_delay_in_minutes, \n" +
+                    "estimated_trip_time, crew_res_type, cost_disr_aircraft, cost_disr_crew, \n" +
+                    "CPT, OPT, SCC, CC, CAB\n" +
+                    "FROM thesis.buyer\n" +
+                    "WHERE \uFEFFresource_affected LIKE '" + resourceAffected + "';";
+        }
+        ResultSet rs = db.fetchDataBase(query);
+        if (rs != null) {
+            ResultSetMetaData rsmd;
+            try {
+                rsmd = rs.getMetaData();
+                while (rs.next()) {
+                    extractQueryData(rs, rsmd, rsmd.getColumnCount(), resourceType);
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+            resourcesMissing = createResources(resourceType);
+        }
     }
 
-    private void queryToAirCraft(ResultSet rs, ResultSetMetaData rsmd, int index) throws SQLException {
+    private ArrayList<Resource> createResources(String resourceType) {
+        ArrayList<Resource> resources = new ArrayList<>();
+        if ("aircraft".equalsIgnoreCase(resourceType)){
+            Aircraft aircraftNeeded = new Aircraft();
+            setAircraftVariables(aircraftNeeded);
+            resources.add(aircraftNeeded);
+            addCrewMemberToResourcesMissing(resources, nCPT, CPT);
+            addCrewMemberToResourcesMissing(resources, nOPT, OPT);
+            addCrewMemberToResourcesMissing(resources, nSCC, SCC);
+            addCrewMemberToResourcesMissing(resources, nCC, CC);
+            addCrewMemberToResourcesMissing(resources, nCAB, CAB);
+        }
+        //change to accept one of each
+        if (CPT.equalsIgnoreCase(resourceType)){
+            setCrewMemberVariables(resources);
+        }
+        if ("all crew".equalsIgnoreCase(resourceType)){
+            addCrewMemberToResourcesMissing(resources, nCPT, CPT);
+            addCrewMemberToResourcesMissing(resources, nOPT, OPT);
+            addCrewMemberToResourcesMissing(resources, nSCC, SCC);
+            addCrewMemberToResourcesMissing(resources, nCC, CC);
+            addCrewMemberToResourcesMissing(resources, nCAB, CAB);
+        }
+        System.out.println("Resources " + resources);
+        return resources;
+    }
+
+    private void setCrewMemberVariables(ArrayList<Resource> resources) {
+        if (CPT.equalsIgnoreCase(resourceType))
+            addCrewMemberToResourcesMissing(resources, nCPT, resourceType);
+        if (OPT.equalsIgnoreCase(resourceType))
+            addCrewMemberToResourcesMissing(resources, nOPT, resourceType);
+        if (SCC.equalsIgnoreCase(resourceType))
+            addCrewMemberToResourcesMissing(resources, nSCC, resourceType);
+        if (CC.equalsIgnoreCase(resourceType))
+            addCrewMemberToResourcesMissing(resources, nCC, resourceType);
+        if (CAB.equalsIgnoreCase(resourceType))
+            addCrewMemberToResourcesMissing(resources, nCAB, resourceType);
+
+    }
+
+    private void addCrewMemberToResourcesMissing(ArrayList<Resource> resources, int crewMemberNumber, String crewMemberCategory) {
+        if (crewMemberNumber != 0) {
+            CrewMember cm = new CrewMember();
+            cm.setNumber(crewMemberNumber);
+            cm.setCategory(crewMemberCategory);
+            resources.add(cm);
+        }
+    }
+
+    private void setAircraftVariables(Aircraft aircraftNeeded) {
+
+        aircraftNeeded.setOrigin(origin);
+        aircraftNeeded.setDestination(destination);
+        aircraftNeeded.setScheduledDeparture(scheduledDepartureMilli);
+        aircraftNeeded.setTripTime(tripTimeMilli);
+        aircraftNeeded.setDelay(delayInMilli);
+        aircraftNeeded.setCapacity(total_pax);
+        aircraftNeeded.setFleet(fleet);
+
+    }
+
+    private void queryToVariables(ResultSet rs, ResultSetMetaData rsmd, int index) throws SQLException {
         switch (rsmd.getColumnLabel(index)){
             case "origin":
                 origin = rs.getString(index);
                 break;
             case "destination":
-                destiantion = rs.getString(index);
+                destination = rs.getString(index);
                 break;
             case "scheduled_time_of_departure":
                 scheduledDeparture = new DateTime(rs.getString(index));
@@ -509,6 +558,9 @@ public class BuyerAgent extends Agent implements Serializable {
                 break;
             case "cost_disr_aircraft":
                 aircraftDisruptionCost = Double.parseDouble(rs.getString(index).replace(',','.'));
+                break;
+            case "cost_disr_crew":
+                crewDisruptionCost = Double.parseDouble(rs.getString(index).replace(',','.'));
                 break;
             case "CPT":
                 nCPT = Integer.parseInt(rs.getString(index));

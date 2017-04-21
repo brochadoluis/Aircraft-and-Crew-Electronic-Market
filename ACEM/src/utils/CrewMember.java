@@ -5,7 +5,7 @@ import java.io.Serializable;
 /**
  * Created by Luis on 20/02/2017.
  */
-public class CrewMember extends Resource implements Serializable{
+public class CrewMember extends Resource implements Serializable {
     /**
      * Needed crew members : @number
      * Needed crew members category : @category
@@ -15,8 +15,8 @@ public class CrewMember extends Resource implements Serializable{
     private String category;
     private String qualifications;
     private Long crewMemberAvailability = null;
-    private Long getCrewMemberDelay = null;
-    private double displacementCost = 0;
+
+    public CrewMember(){}
 
     public CrewMember(Integer number, String category, String qualifications) {
         super();
@@ -54,41 +54,12 @@ public class CrewMember extends Resource implements Serializable{
                 + this.category +" and Crew Member qualifications =  " + this.qualifications + " with ");
     }
 
-    @Override
-    public Double getPrice() {
-        return displacementCost;
-    }
-
-    @Override
-    public void setPrice(double cost) {
-        this.displacementCost = cost;
-    }
-
-    public String getType() {
-        return null;
-    }
-
-    public Integer getCapacity() {
-        return null;
-    }
-
-    @Override
     public Long getAvailability() {
         return crewMemberAvailability;
     }
 
-    @Override
     public void setAvailability(Long crewMemberAvailability) {
         this.crewMemberAvailability = crewMemberAvailability;
     }
 
-    @Override
-    public Long getDelay() {
-        return getCrewMemberDelay;
-    }
-
-    @Override
-    public void setDelay(Long getCrewMemberDelay) {
-        this.getCrewMemberDelay = getCrewMemberDelay;
-    }
 }

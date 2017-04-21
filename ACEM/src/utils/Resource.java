@@ -5,24 +5,50 @@ import java.io.Serializable;
 /**
  * Created by Luis on 20/02/2017.
  */
-public abstract class Resource implements Serializable{
+public class Resource implements Serializable {
+
+    private double displacementCost;
+    private long availability;
+    private long delay;
+    private String fleet;
 
     public Resource() {
-
-        super();
     }
 
-    public abstract void printResource();
+    /**
+     * Common methods to Aircraft and Crew
+     */
+    public Double getPrice() {
+        return this.displacementCost;
+    }
 
-    public abstract Double getPrice();
+    public void setPrice(double displacementCost) {
+        this.displacementCost = displacementCost;
+    }
 
-    public abstract void setPrice(double price);
+    public Long getAvailability() {
+        return this.availability;
+    }
 
-    public abstract Long getAvailability();
+    public void setAvailability(Long availability) {
+        this.availability = availability;
+    }
 
-    public abstract void setAvailability(Long availability);
+    public Long getDelay() {
+        return this.delay;
+    }
 
-    public abstract Long getDelay();
+    public void setDelay(Long delay) {
+        this.delay = delay;
+    }
 
-    public abstract void setDelay(Long delay);
+//    public void printResource();
+
+    public String getFleet() {
+        return this.fleet;
+    }
+
+    public void setFleet(String fleet) {
+        this.fleet = fleet;
+    }
 }

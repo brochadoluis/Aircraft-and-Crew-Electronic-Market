@@ -1,26 +1,65 @@
 package utils;
 
+import jade.core.AID;
+
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.function.LongToDoubleFunction;
 
 /**
  * Created by Luis on 20/02/2017.
  */
-public class Aircraft extends Resource implements Serializable{
+public class Aircraft extends Resource implements Serializable {
     /**
      * Needed aircraft type : @type
      * Needed aircraft capacity : @capacity
      */
     private String type;
     private Integer capacity;
+    private String origin;
+    private String destination;
+    private Long scheduledDeparture = null;
+    private Long tripTime = null;
     private Long aircraftAvailability = null;
-    private Long aircraftDelay = null;
-    private double displacementCost = 0;
+
+    public Aircraft(){}
 
     public Aircraft(String type, Integer capacity) {
         super();
         this.type = type;
         this.capacity = capacity;
+    }
+
+    public String getOrigin() {
+        return origin;
+    }
+
+    public void setOrigin(String origin) {
+        this.origin = origin;
+    }
+
+    public String getDestination() {
+        return destination;
+    }
+
+    public void setDestination(String destination) {
+        this.destination = destination;
+    }
+
+    public long getScheduledDeparture() {
+        return scheduledDeparture;
+    }
+
+    public void setScheduledDeparture(long scheduledDeparture) {
+        this.scheduledDeparture = scheduledDeparture;
+    }
+
+    public long getTripTime() {
+        return tripTime;
+    }
+
+    public void setTripTime(long tripTime) {
+        this.tripTime = tripTime;
     }
 
     public String getType() {
@@ -39,49 +78,14 @@ public class Aircraft extends Resource implements Serializable{
         this.capacity = capacity;
     }
 
-    @Override
-    public Double getPrice() {
-        return displacementCost;
-    }
-
-    @Override
-    public void setPrice(double cost) {
-        this.displacementCost = cost;
-    }
-
-    public Integer getNumber() {
-        return null;
-    }
-
-    public String getCategory() {
-        return null;
-    }
-
-    public String getQualifications() {
-        return null;
-    }
-
-    @Override
-    public Long getDelay(){
-        return aircraftDelay;
-    }
-
-    @Override
-    public void setDelay(Long aircraftDelay) {
-        this.aircraftDelay = aircraftDelay;
-    }
-
-    @Override
     public Long getAvailability() {
         return aircraftAvailability;
     }
 
-    @Override
     public void setAvailability(Long aircraftAvailability) {
         this.aircraftAvailability = aircraftAvailability;
     }
 
-    @Override
     public void printResource() {
         System.out.print("Aircraft Type = " + this.type +" and Aircraft Capacity =  " + this.capacity + " with ");
     }
