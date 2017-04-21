@@ -1,6 +1,7 @@
 package agents;
 
 import jade.core.AID;
+import utils.Flight;
 import utils.Resource;
 
 import java.io.Serializable;
@@ -11,11 +12,9 @@ import java.util.List;
  * Created by Luis on 03/03/2017.
  */
 public class Proposal implements Serializable {
-    private double price;
-    private long availability;
-    private long scheduledDeparture;
-    private long delay;
-    private long duration;
+    private Double price;
+    private Long availability;
+    private Flight flight;
     /**
      * private Date availability; ou Integer, em que 0 significa que cumpre o horario, mesmo que seja com antecedência,
      * ou seja, nao importa se entrega antes de tempo, importa que o voo sera cumprido sem atraso
@@ -23,14 +22,13 @@ public class Proposal implements Serializable {
      */
     private String priceComment;
     private String availabilityComment;
-    private ArrayList<Resource> resourcesProposed = new ArrayList<>();
     private Integer round;
     private AID sender;
 
-    public Proposal(double price, long availability, List<Resource> resourcesProposed, AID sender) {
+    public Proposal(double price, long availability, Flight disruptedFlight, AID sender) {
         this.price = price;
         this.availability = availability;
-        this.resourcesProposed = (ArrayList<Resource>) resourcesProposed;
+        this.flight = disruptedFlight;
         this.sender = sender;
     }
 
@@ -74,36 +72,12 @@ public class Proposal implements Serializable {
         this.round = round;
     }
 
-    public List<Resource> getResourcesProposed() {
-        return resourcesProposed;
+    public Flight getFlight() {
+        return flight;
     }
 
-    public void setResourcesProposed(List<Resource> resourcesProposed) {
-        this.resourcesProposed = (ArrayList<Resource>) resourcesProposed;
-    }
-
-    public long getScheduledDeparture() {
-        return scheduledDeparture;
-    }
-
-    public void setScheduledDeparture(long scheduledDeparture) {
-        this.scheduledDeparture = scheduledDeparture;
-    }
-
-    public long getDelay() {
-        return delay;
-    }
-
-    public void setDelay(long delay) {
-        this.delay = delay;
-    }
-
-    public long getDuration() {
-        return duration;
-    }
-
-    public void setDuration(long duration) {
-        this.duration = duration;
+    public void setFlight(Flight flight) {
+        this.flight = flight;
     }
 
     public AID getSender() {

@@ -5,7 +5,7 @@ import java.io.Serializable;
 /**
  * Created by Luis on 20/02/2017.
  */
-public class CrewMember extends Resource implements Serializable {
+public class CrewMember implements Serializable {
     /**
      * Needed crew members : @number
      * Needed crew members category : @category
@@ -19,11 +19,12 @@ public class CrewMember extends Resource implements Serializable {
     public CrewMember(){}
 
     public CrewMember(Integer number, String category, String qualifications) {
-        super();
         this.number = number;
         this.category = category;
         this.qualifications = qualifications;
     }
+
+    private double displacementCost;
 
     public Integer getNumber() {
         return number;
@@ -50,8 +51,8 @@ public class CrewMember extends Resource implements Serializable {
     }
 
     public void printResource() {
-        System.out.print("Crew Member Number = " + this.number +", Crew Member Category =  "
-                + this.category +" and Crew Member qualifications =  " + this.qualifications + " with ");
+        System.out.print("Crew Member Number = " + this.number +" and Crew Member Category =  "
+                + this.category);
     }
 
     public Long getAvailability() {

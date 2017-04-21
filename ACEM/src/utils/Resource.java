@@ -42,7 +42,9 @@ public class Resource implements Serializable {
         this.delay = delay;
     }
 
-//    public void printResource();
+    public void printResource() {
+        System.out.print("Resource Type = " + this.getClass().getSimpleName() +", fleet =  " + this.fleet + " and " + delay + " ms delay.");
+    }
 
     public String getFleet() {
         return this.fleet;

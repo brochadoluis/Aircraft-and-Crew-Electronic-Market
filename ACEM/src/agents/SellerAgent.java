@@ -17,12 +17,12 @@ import jade.proto.SSResponderDispatcher;
 import jade.util.Logger;
 import utils.Aircraft;
 import utils.CrewMember;
+import utils.Flight;
 import utils.Resource;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
-import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -42,8 +42,8 @@ public class SellerAgent extends Agent implements Serializable{
     //    private final String role = "Seller";
     private String company = "";
     private DFServices dfs = new DFServices();
-    private PriorityQueue<ArrayList<Resource>> resourcesQueue = null;
-    ArrayList<ArrayList<Resource>> solutions = new ArrayList<>();
+    private PriorityQueue<Flight> flightsQueue = null;
+    ArrayList<Flight> solutions = new ArrayList<>();
     private Integer round = 0;
     //HashMap<round,proposal>
     private HashMap<Integer,Proposal> negotiationHistoric = new HashMap<>();
@@ -118,7 +118,7 @@ public class SellerAgent extends Agent implements Serializable{
                          * First Round means that sellers need to fetch for available resources in the DataBase
                          * The first round is identif ied by having both, Resource's Queue and Negotiation Historic HashMap, empty
                          */
-                        if (resourcesQueue == null && negotiationHistoric.isEmpty()) {
+                        if (flightsQueue == null && negotiationHistoric.isEmpty()) {
                             handleFirstCFP(cfp);
                             logger.log(Level.INFO, "proposal toString = {0}", proposal.toString());
                         } else {
@@ -141,7 +141,7 @@ public class SellerAgent extends Agent implements Serializable{
                             proposal = applyCommentsToProposal(rejectedProposal);
                             logger.log(Level.INFO, "proposal toString = {0}", rejectedProposal.toString());
                         }
-                        if (!resourcesQueue.isEmpty()) {
+                        if (!flightsQueue.isEmpty()) {
                             ACLMessage propose = cfp.createReply();
                             propose.setPerformative(ACLMessage.PROPOSE);
                             try {
@@ -169,21 +169,21 @@ public class SellerAgent extends Agent implements Serializable{
                     }
 
                     private Proposal handleFirstCFP(ACLMessage cfp) {
-                        ArrayList<Resource> queueHead;
-                        ArrayList<Resource> askedResources = getMsgResources(cfp);
+                        Flight queueHead;
+                        Flight askedFlight = getMsgResources(cfp);
                         logger.log(Level.INFO, "Agent {0}: Searching for resources to lease ", getLocalName());
                         logger.log(Level.INFO, "Agent {0}: Proposing", getLocalName());
                         //Fetch funtion, writes to an ArrayList the resources available
-                        solutions = getAvailableMatchingResources(askedResources);
+                /*        solutions = getAvailableMatchingResources(askedFlight);
                         putResourcesIntoQueue(solutions);
-                        queueHead = resourcesQueue.peek();
+                        queueHead = flightsQueue.peek();
                         double displacementCosts = sumResourcesPrice(queueHead);
                         minimumPrice = displacementCosts + (displacementCosts * 0.5);
                         maximumPrice = displacementCosts + (displacementCosts * 2);
                         long worstAvailability = getWorstAvailability(queueHead);
                         proposal = new Proposal(maximumPrice, worstAvailability, queueHead, this.getAgent().getAID());
                         negotiationHistoric.put(round, proposal);
-
+*/
                         return proposal;
                     }
 
@@ -293,14 +293,14 @@ public class SellerAgent extends Agent implements Serializable{
     }
 
     private void resetNegotiationStructure() {
-        resourcesQueue = null;
+        flightsQueue = null;
         negotiationHistoric = new HashMap<>();
         solutions = new ArrayList<>();
         round = 0;
     }
 
     private Proposal applyCommentsToProposal(Proposal rejectedProposal) {
-        ArrayList<Resource> queueHead = resourcesQueue.poll();
+//        ArrayList<Resource> queueHead = flightsQueue.poll();
 //        double displacementCosts = sumResourcesPrice(queueHead);
         ArrayList<String> comments = findSimilarCases(rejectedProposal);
         System.out.println("Comments in Apply Comments to Proposal " + comments);
@@ -351,15 +351,15 @@ public class SellerAgent extends Agent implements Serializable{
                 break;
         }
         // Aqui entra a aprendizagem dos agentes
-        if (hasBetterUtility(rejectedProposal, queueHead)){
-            resourcesQueue.add(queueHead);
+        /*if (hasBetterUtility(rejectedProposal, queueHead)){
+            flightsQueue.add(queueHead);
         }
         else{
-            /**
+            *//**
              * TODO: something here
-             */
+             *//*
         }
-        proposal = new Proposal(rejectedProposal.getPrice(), rejectedProposal.getAvailability(), rejectedProposal.getResourcesProposed(), this.getAID());
+        proposal = new Proposal(rejectedProposal.getPrice(), rejectedProposal.getAvailability(), , rejectedProposal.getResourcesProposed(), this.getAID());*/
         return proposal;
     }
 
@@ -489,9 +489,9 @@ public class SellerAgent extends Agent implements Serializable{
      * Combines the ArrayLists obtained from the queries
      * Pushes the result to the queue, by utility, in decreasing order,
      * using the Utility Comparator
-     * @param askedResources: Resources received in ACL Message
+     * @param askedFlight: Resources received in ACL Message
      */
-    private ArrayList<ArrayList<Resource>> getAvailableMatchingResources(ArrayList<Resource> askedResources) {
+    private ArrayList<ArrayList<Resource>> getAvailableMatchingResources(ArrayList<Resource> askedFlight) {
         ArrayList<Resource> availableResources = new ArrayList<>();
         ArrayList<ArrayList<Resource>> allResourcesCombinations = new ArrayList<>();
 
@@ -532,7 +532,7 @@ public class SellerAgent extends Agent implements Serializable{
          * if >0 means that the resource isnt good -1 - (-3) 2 => -3 is later than -1
          * Ideal scenario, dif ference = delay
          * Otherwise, the more negative the better.
-         */
+         *//*
         Resource r1  = new Aircraft("Boeing 777", 396);
         r1.setPrice(23456.3D);
         r1.setAvailability(0L);
@@ -570,14 +570,14 @@ public class SellerAgent extends Agent implements Serializable{
             for (int j = i; j < availableResources.size(); j++) {
                 if (availableResources.get(i).getClass() != availableResources.get(j).getClass()) {
                     ArrayList<Resource> combination = new ArrayList<>();
-                    combination.ensureCapacity(askedResources.size());
+                    combination.ensureCapacity(askedFlight.size());
                     combination.add(availableResources.get(i));
                     combination.add(availableResources.get(j));
                     allResourcesCombinations.add(combination);
                     continue;
                 }
             }
-        }
+        }*/
         return allResourcesCombinations;
     }
 
@@ -591,9 +591,9 @@ public class SellerAgent extends Agent implements Serializable{
             int queueSize = solutions.size();
             Comparator<ArrayList<Resource>>  comparator = new PriceComparator();
 
-            resourcesQueue = new PriorityQueue<>(queueSize, comparator );
+//            flightsQueue = new PriorityQueue<>(queueSize, comparator );
             for(int i = 0; i < solutions.size(); i++) {
-                resourcesQueue.add(solutions.get(i));
+//                flightsQueue.add(solutions.get(i));
             }
             /**
              * Calculates utility
@@ -613,7 +613,8 @@ public class SellerAgent extends Agent implements Serializable{
          * comments applied) with the new top of the queue. If the difference is too small, the head is not added to queue again, and the new
          * top is now the resource under negotiation
          */
-        return resourcesQueue.peek();
+//        return flightsQueue.peek();
+        return null;
     }
 
     private double utilityCalculation(double priceOffered) {
@@ -647,19 +648,23 @@ public class SellerAgent extends Agent implements Serializable{
      * @param msg : ACL message to be procesed
      * @return A list of resources contained in msg
      */
-    private ArrayList<Resource> getMsgResources(ACLMessage msg) {
-        ArrayList<Resource> resourcesToBeLeased = null;
+    private Flight getMsgResources(ACLMessage msg) {
+        Flight disruptedFlight;
         Proposal cfp = null;
         try {
             cfp = (Proposal) msg.getContentObject();
         } catch (UnreadableException e) {
             e.printStackTrace();
         }
-        resourcesToBeLeased = (ArrayList<Resource>) cfp.getResourcesProposed();
+        disruptedFlight = cfp.getFlight();
+        System.out.println("fligh aircragt " + disruptedFlight.getAircraft());
+        for (CrewMember cm: disruptedFlight.getCrewMembers()) {
+            System.out.println("Cm " + cm);
+        }/*
         scheduledDeparture = cfp.getScheduledDeparture();
-        delay = cfp.getDelay();
+        delay = cfp.getDelay();*/
         System.out.println("Departure " + scheduledDeparture);
         System.out.println("Delay " + delay);
-        return resourcesToBeLeased;
+        return disruptedFlight;
     }
 }

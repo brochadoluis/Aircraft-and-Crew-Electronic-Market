@@ -14,10 +14,7 @@ import jade.lang.acl.ACLMessage;
 import jade.lang.acl.UnreadableException;
 import jade.proto.ContractNetInitiator;
 import jade.util.Logger;
-import utils.Aircraft;
-import utils.CrewMember;
-import utils.Log;
-import utils.Resource;
+import utils.*;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -44,8 +41,9 @@ public class BuyerAgent extends Agent implements Serializable {
     private final Logger logger = jade.util.Logger.getMyLogger(this.getClass().getName());
     private Log log;
     private Proposal bestProposal = null;
+    private Flight disruptedFlight = new Flight();
     private ArrayList<Resource> resourcesMissing = new ArrayList<>();
-    private double maximumDisruptionCost;
+    private double maximumDisruptionCost; // this is imported
     private DateTime scheduledDeparture;
     private DateTime tripTime;
     private String resourceType = "";
@@ -212,11 +210,8 @@ public class BuyerAgent extends Agent implements Serializable {
 
     private ACLMessage sendFirstCFP() {
         logger.log(Level.INFO, "Round n (Before first CFP): {0}", round);
-        Proposal cfp = new Proposal(0F, 1L, resourcesMissing, this.getAID());
-        cfp.setScheduledDeparture(scheduledDepartureMilli);
-//        long maxDelay = getMaxDelay(resourcesMissing);
-        cfp.setDelay(delayInMilli);
-        cfp.setDuration(tripTimeMilli);
+        disruptedFlight.printFlgiht();
+        Proposal cfp = new Proposal(0F, 1L, disruptedFlight, this.getAID());
         ACLMessage msg = new ACLMessage(ACLMessage.CFP);
         for (AID seller : sellers) {
             msg.addReceiver(seller);
@@ -230,6 +225,7 @@ public class BuyerAgent extends Agent implements Serializable {
         } catch (IOException e) {
             logger.log(Level.SEVERE, "Could not set message's content: {0} ", e);
         }
+        System.out.println("msg = " + msg);
         return msg;
     }
 
@@ -246,7 +242,7 @@ public class BuyerAgent extends Agent implements Serializable {
                 ACLMessage msgToSend = (ACLMessage) acceptances.get(i);
                 double proposedPrice = response.getPrice();
                 long proposedAvailability = response.getAvailability();
-                Proposal proposalWithComments = new Proposal(proposedPrice, proposedAvailability, response.getResourcesProposed(), response.getSender());
+                Proposal proposalWithComments = new Proposal(proposedPrice, proposedAvailability, response.getFlight(), response.getSender());
                 //These conditions need to be updated
                 if (proposedPrice / bestProposal.getPrice() >= 5) {
                     proposalWithComments.setPriceComment(MUCH_LOWER);
@@ -346,21 +342,6 @@ public class BuyerAgent extends Agent implements Serializable {
          */
     }
 
-    private long getMaxDelay(ArrayList<Resource> resources) {
-        long maxDelay = -1;
-        if (resources.get(0).getDelay() != null) {
-            maxDelay = resources.get(0).getDelay();
-            for (int i = 0; i < resources.size(); i++) {
-                Resource aResource = resources.get(i);
-                maxDelay = aResource.getDelay();
-                if (aResource.getDelay() > maxDelay) {
-                    maxDelay = aResource.getDelay();
-                }
-            }
-        }
-        return maxDelay;
-    }
-
     private double utilityCalculation(double priceOffered, long availabilityOffered) {
         long proposedDeparture = scheduledDepartureMilli + availabilityOffered;
 
@@ -420,7 +401,6 @@ public class BuyerAgent extends Agent implements Serializable {
                 unidentifiedResource.next();
                 resourceType = unidentifiedResource.getString("missing_resource");
                 System.out.println("Resource Type  " + resourceType);
-                System.out.println("CPT.equalsIgnoreCase(resourceType) " + CPT.equalsIgnoreCase(resourceType));
                 prepareQuery(resourceType, resourceAffected);
             } catch (SQLException e) {
                 // handle any errors
@@ -467,70 +447,90 @@ public class BuyerAgent extends Agent implements Serializable {
             } catch (SQLException e) {
                 e.printStackTrace();
             }
-            resourcesMissing = createResources(resourceType);
+            initializeFlightVariables(disruptedFlight,resourceType);
         }
     }
 
-    private ArrayList<Resource> createResources(String resourceType) {
-        ArrayList<Resource> resources = new ArrayList<>();
+    private void initializeFlightVariables(Flight flight, String resourceType) {
+        flight.setScheduledDeparture(scheduledDepartureMilli);
+        flight.setTripTime(tripTimeMilli);
+        flight.setDelay(delayInMilli);
+        flight.setOrigin(origin);
+        flight.setDestination(destination);
+        flight.setFleet(fleet);
+        addResourcesToFlight(resourceType);
+    }
+
+    private void addResourcesToFlight(String resourceType) {
         if ("aircraft".equalsIgnoreCase(resourceType)){
             Aircraft aircraftNeeded = new Aircraft();
             setAircraftVariables(aircraftNeeded);
-            resources.add(aircraftNeeded);
-            addCrewMemberToResourcesMissing(resources, nCPT, CPT);
-            addCrewMemberToResourcesMissing(resources, nOPT, OPT);
-            addCrewMemberToResourcesMissing(resources, nSCC, SCC);
-            addCrewMemberToResourcesMissing(resources, nCC, CC);
-            addCrewMemberToResourcesMissing(resources, nCAB, CAB);
-        }
+            disruptedFlight.setAircraft(aircraftNeeded);
+            addCrew();
+            }
         //change to accept one of each
-        if (CPT.equalsIgnoreCase(resourceType)){
-            setCrewMemberVariables(resources);
+        if (CPT.equalsIgnoreCase(resourceType) || OPT.equalsIgnoreCase(resourceType)
+                || SCC.equalsIgnoreCase(resourceType) || CC.equalsIgnoreCase(resourceType)
+                || CAB.equalsIgnoreCase(resourceType)){
+            addCrewMemberToFlight(disruptedFlight, resourceType);
         }
         if ("all crew".equalsIgnoreCase(resourceType)){
-            addCrewMemberToResourcesMissing(resources, nCPT, CPT);
-            addCrewMemberToResourcesMissing(resources, nOPT, OPT);
-            addCrewMemberToResourcesMissing(resources, nSCC, SCC);
-            addCrewMemberToResourcesMissing(resources, nCC, CC);
-            addCrewMemberToResourcesMissing(resources, nCAB, CAB);
+            addCrew();
+
         }
-        System.out.println("Resources " + resources);
-        return resources;
+        //Adicionar tambem o preço e(depois de os somar) e guardar numa variavel do buyer e nao do voo!!!!!
     }
 
-    private void setCrewMemberVariables(ArrayList<Resource> resources) {
-        if (CPT.equalsIgnoreCase(resourceType))
-            addCrewMemberToResourcesMissing(resources, nCPT, resourceType);
-        if (OPT.equalsIgnoreCase(resourceType))
-            addCrewMemberToResourcesMissing(resources, nOPT, resourceType);
-        if (SCC.equalsIgnoreCase(resourceType))
-            addCrewMemberToResourcesMissing(resources, nSCC, resourceType);
-        if (CC.equalsIgnoreCase(resourceType))
-            addCrewMemberToResourcesMissing(resources, nCC, resourceType);
-        if (CAB.equalsIgnoreCase(resourceType))
-            addCrewMemberToResourcesMissing(resources, nCAB, resourceType);
-
+    private void addCrew() {
+        addCrewMemberToFlight(disruptedFlight, CPT);
+        addCrewMemberToFlight(disruptedFlight, OPT);
+        addCrewMemberToFlight(disruptedFlight, SCC);
+        addCrewMemberToFlight(disruptedFlight, CC);
+        addCrewMemberToFlight(disruptedFlight, CAB);
     }
 
-    private void addCrewMemberToResourcesMissing(ArrayList<Resource> resources, int crewMemberNumber, String crewMemberCategory) {
+    private void addCrewMemberToFlight(Flight flight, String resourceType) {
+        if (CPT.equalsIgnoreCase(resourceType)){
+            CrewMember cm = setCrewMemberVariables(flight, nCPT, resourceType);
+            if (cm != null) {
+                System.out.println("Cm " + cm.getCategory());
+                flight.addCrewMember(cm);
+            }
+        }
+        if (OPT.equalsIgnoreCase(resourceType)){
+            CrewMember cm = setCrewMemberVariables(flight, nOPT, resourceType);
+            if (cm != null)
+                flight.addCrewMember(cm);
+        }
+        if (SCC.equalsIgnoreCase(resourceType)) {
+            CrewMember cm = setCrewMemberVariables(flight, nSCC, resourceType);
+            if (cm != null)
+                flight.addCrewMember(cm);
+        }
+        if (CC.equalsIgnoreCase(resourceType)) {
+            CrewMember cm = setCrewMemberVariables(flight, nCC, resourceType);
+            if (cm != null)
+                flight.addCrewMember(cm);
+        }
+        if (CAB.equalsIgnoreCase(resourceType)){
+            CrewMember cm = setCrewMemberVariables(flight, nCAB, resourceType);
+            if (cm != null)
+                flight.addCrewMember(cm);
+        }
+    }
+
+    private CrewMember setCrewMemberVariables(Flight flight, int crewMemberNumber, String crewMemberCategory) {
         if (crewMemberNumber != 0) {
             CrewMember cm = new CrewMember();
             cm.setNumber(crewMemberNumber);
             cm.setCategory(crewMemberCategory);
-            resources.add(cm);
+            return cm;
         }
+        return null;
     }
 
     private void setAircraftVariables(Aircraft aircraftNeeded) {
-
-        aircraftNeeded.setOrigin(origin);
-        aircraftNeeded.setDestination(destination);
-        aircraftNeeded.setScheduledDeparture(scheduledDepartureMilli);
-        aircraftNeeded.setTripTime(tripTimeMilli);
-        aircraftNeeded.setDelay(delayInMilli);
         aircraftNeeded.setCapacity(total_pax);
-        aircraftNeeded.setFleet(fleet);
-
     }
 
     private void queryToVariables(ResultSet rs, ResultSetMetaData rsmd, int index) throws SQLException {
