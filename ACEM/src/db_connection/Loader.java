@@ -26,7 +26,7 @@ public class Loader {
         }
         try {
             //user and password should be arguments, but to test they're hardcoded
-            conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/thesis?useSSL=false","root","luisreis_1992");
+            conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/test?useSSL=false","root","luisreis_1992");
             // Do something with the Connection
         } catch (SQLException e) {
             e.printStackTrace();

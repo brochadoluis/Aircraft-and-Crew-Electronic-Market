@@ -22,13 +22,18 @@ public class Proposal implements Serializable {
      */
     private String priceComment;
     private String availabilityComment;
-    private Integer round;
     private AID sender;
 
     public Proposal(double price, long availability, Flight disruptedFlight, AID sender) {
         this.price = price;
         this.availability = availability;
         this.flight = disruptedFlight;
+        this.sender = sender;
+    }
+
+    public Proposal(double price, long availability,AID sender) {
+        this.price = price;
+        this.availability = availability;
         this.sender = sender;
     }
 
@@ -62,14 +67,6 @@ public class Proposal implements Serializable {
 
     public void setAvailabilityComment(String availabilityComment) {
         this.availabilityComment = availabilityComment;
-    }
-
-    public Integer getRound() {
-        return round;
-    }
-
-    public void setRound(Integer round) {
-        this.round = round;
     }
 
     public Flight getFlight() {

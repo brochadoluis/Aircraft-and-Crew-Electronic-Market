@@ -42,7 +42,6 @@ public class BuyerAgent extends Agent implements Serializable {
     private Log log;
     private Proposal bestProposal = null;
     private Flight disruptedFlight = new Flight();
-    private ArrayList<Resource> resourcesMissing = new ArrayList<>();
     private double maximumDisruptionCost; // this is imported
     private DateTime scheduledDeparture;
     private DateTime tripTime;
@@ -155,6 +154,7 @@ public class BuyerAgent extends Agent implements Serializable {
                             reply.setPerformative(ACLMessage.CFP);
                             acceptances.addElement(reply);
                             proposal = retrieveProposalContent(msg);
+                            System.out.println("Proposal =");
                             evaluateProposal(proposal);
                             if (round == 7) {
                                 bestProposal = proposal;
@@ -210,7 +210,7 @@ public class BuyerAgent extends Agent implements Serializable {
 
     private ACLMessage sendFirstCFP() {
         logger.log(Level.INFO, "Round n (Before first CFP): {0}", round);
-        disruptedFlight.printFlgiht();
+        disruptedFlight.printFlight();
         Proposal cfp = new Proposal(0F, 1L, disruptedFlight, this.getAID());
         ACLMessage msg = new ACLMessage(ACLMessage.CFP);
         for (AID seller : sellers) {
@@ -385,9 +385,10 @@ public class BuyerAgent extends Agent implements Serializable {
 //            }
             System.out.println(rsmd.getColumnLabel(i) + " : " + rs.getString(i));
         }
+        System.out.println("TripTime " + scheduledDeparture);
         DateTime dateTimeTripTime = scheduledDeparture.plus(0,0,0,tripTime.getHour(),tripTime.getMinute(),tripTime.getSecond(),0,DateTime.DayOverflow.FirstDay);
         scheduledDepartureMilli = scheduledDeparture.getMilliseconds(TimeZone.getTimeZone("GMT"));
-        tripTimeMilli = dateTimeTripTime.getMilliseconds(TimeZone.getTimeZone("GMT"));
+        tripTimeMilli = ((dateTimeTripTime.getMilliseconds(TimeZone.getTimeZone("GMT"))) - scheduledDepartureMilli);
         delayInMilli = delayInMinutes * 60 * 1000;
         System.out.println("delayInMilli " + delayInMilli);
         System.out.println("");
@@ -415,7 +416,7 @@ public class BuyerAgent extends Agent implements Serializable {
         String query = "";
         if ("aircraft".equals(resourceType)) {
             //Aircraft + Crew are need, but the agent just asks for an aircraft and the seller knows that the crew is included
-            query = "SELECT origin, destination, scheduled_time_of_departure, departure_delay_in_minutes, \n" +
+            /*query = "SELECT origin, destination, scheduled_time_of_departure, departure_delay_in_minutes, \n" +
                     "estimated_trip_time, total_pax, crew_res_type, cost_disr_aircraft, cost_disr_crew\n" +
                     "FROM thesis.buyer\n" +
                     "WHERE \uFEFFresource_affected = '" + resourceAffected + "';";
@@ -431,10 +432,31 @@ public class BuyerAgent extends Agent implements Serializable {
                 || SCC.equalsIgnoreCase(resourceType) || CC.equalsIgnoreCase(resourceType)
                 || CAB.equalsIgnoreCase(resourceType)) {
             //only 1 crew member type, or more than 1?
-            query = "SELECT  missing_resource,scheduled_time_of_departure, departure_delay_in_minutes, \n" +
+            query = "SELECT  \uFEFFmissing_resource,scheduled_time_of_departure, departure_delay_in_minutes, \n" +
                     "estimated_trip_time, crew_res_type, cost_disr_aircraft, cost_disr_crew, \n" +
                     "CPT, OPT, SCC, CC, CAB\n" +
                     "FROM thesis.buyer\n" +
+                    "WHERE \uFEFFresource_affected LIKE '" + resourceAffected + "';";*/
+            query = "SELECT origin, destination, scheduled_time_of_departure, departure_delay_in_minutes, \n" +
+                    "estimated_trip_time, total_pax, crew_res_type, cost_disr_aircraft, cost_disr_crew\n" +
+                    "FROM test.buyer\n" +
+                    "WHERE \uFEFFresource_affected = '" + resourceAffected + "';";
+        }
+        else if ("all crew".equals(resourceType)) {
+            // All crew is needed
+            query = "SELECT CPT, OPT, SCC, CC, CAB,scheduled_time_of_departure, departure_delay_in_minutes, \n" +
+                    "estimated_trip_time, crew_res_type, cost_disr_aircraft, cost_disr_crew\n" +
+                    "FROM test.buyer\n" +
+                    "WHERE \uFEFFresource_affected LIKE '" + resourceAffected + "';";
+        }
+        else if (CPT.equalsIgnoreCase(resourceType) || OPT.equalsIgnoreCase(resourceType)
+                || SCC.equalsIgnoreCase(resourceType) || CC.equalsIgnoreCase(resourceType)
+                || CAB.equalsIgnoreCase(resourceType)) {
+            //only 1 crew member type, or more than 1?
+            query = "SELECT  \uFEFFmissing_resource,scheduled_time_of_departure, departure_delay_in_minutes, \n" +
+                    "estimated_trip_time, crew_res_type, cost_disr_aircraft, cost_disr_crew, \n" +
+                    "CPT, OPT, SCC, CC, CAB\n" +
+                    "FROM test.buyer\n" +
                     "WHERE \uFEFFresource_affected LIKE '" + resourceAffected + "';";
         }
         ResultSet rs = db.fetchDataBase(query);
@@ -487,35 +509,35 @@ public class BuyerAgent extends Agent implements Serializable {
 
     private void addCrewMemberToFlight(Flight flight, String resourceType) {
         if (CPT.equalsIgnoreCase(resourceType)){
-            CrewMember cm = setCrewMemberVariables(flight, nCPT, resourceType);
+            CrewMember cm = verifyCrewMember(flight, nCPT, resourceType);
             if (cm != null) {
                 System.out.println("Cm " + cm.getCategory());
                 flight.addCrewMember(cm);
             }
         }
         if (OPT.equalsIgnoreCase(resourceType)){
-            CrewMember cm = setCrewMemberVariables(flight, nOPT, resourceType);
+            CrewMember cm = verifyCrewMember(flight, nOPT, resourceType);
             if (cm != null)
                 flight.addCrewMember(cm);
         }
         if (SCC.equalsIgnoreCase(resourceType)) {
-            CrewMember cm = setCrewMemberVariables(flight, nSCC, resourceType);
+            CrewMember cm = verifyCrewMember(flight, nSCC, resourceType);
             if (cm != null)
                 flight.addCrewMember(cm);
         }
         if (CC.equalsIgnoreCase(resourceType)) {
-            CrewMember cm = setCrewMemberVariables(flight, nCC, resourceType);
+            CrewMember cm = verifyCrewMember(flight, nCC, resourceType);
             if (cm != null)
                 flight.addCrewMember(cm);
         }
         if (CAB.equalsIgnoreCase(resourceType)){
-            CrewMember cm = setCrewMemberVariables(flight, nCAB, resourceType);
+            CrewMember cm = verifyCrewMember(flight, nCAB, resourceType);
             if (cm != null)
                 flight.addCrewMember(cm);
         }
     }
 
-    private CrewMember setCrewMemberVariables(Flight flight, int crewMemberNumber, String crewMemberCategory) {
+    private CrewMember verifyCrewMember(Flight flight, int crewMemberNumber, String crewMemberCategory) {
         if (crewMemberNumber != 0) {
             CrewMember cm = new CrewMember();
             cm.setNumber(crewMemberNumber);
@@ -553,10 +575,10 @@ public class BuyerAgent extends Agent implements Serializable {
                 fleet = rs.getString(index);
                 break;
             case "cost_disr_aircraft":
-                aircraftDisruptionCost = Double.parseDouble(rs.getString(index).replace(',','.'));
+                aircraftDisruptionCost = Double.parseDouble(rs.getString(index).replace(",","."));
                 break;
             case "cost_disr_crew":
-                crewDisruptionCost = Double.parseDouble(rs.getString(index).replace(',','.'));
+                crewDisruptionCost = Double.parseDouble(rs.getString(index).replace(",","."));
                 break;
             case CPT:
                 nCPT = Integer.parseInt(rs.getString(index));

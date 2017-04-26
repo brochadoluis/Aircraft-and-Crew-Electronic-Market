@@ -14,6 +14,10 @@ public class CrewMember implements Serializable {
     private Integer number;
     private String category;
     private String qualifications;
+    private double crewMemberId;
+    private int seniority;
+    private String status;
+    private int hourly_salary;
     private Long crewMemberAvailability = null;
 
     public CrewMember(){}
@@ -42,17 +46,44 @@ public class CrewMember implements Serializable {
         this.category = category;
     }
 
+    public double getCrewMemberId() {
+        return crewMemberId;
+    }
+
+    public void setCrewMemberId(double crewMemberId) {
+        this.crewMemberId = crewMemberId;
+    }
+
+    public int getSeniority() {
+        return seniority;
+    }
+
+    public void setSeniority(int seniority) {
+        this.seniority = seniority;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public int getHourly_salary() {
+        return hourly_salary;
+    }
+
+    public void setHourly_salary(int hourly_salary) {
+        this.hourly_salary = hourly_salary;
+    }
+
     public String getQualifications() {
         return qualifications;
     }
 
     public void setQualifications(String qualifications) {
         this.qualifications = qualifications;
-    }
-
-    public void printResource() {
-        System.out.print("Crew Member Number = " + this.number +" and Crew Member Category =  "
-                + this.category);
     }
 
     public Long getAvailability() {
@@ -63,4 +94,15 @@ public class CrewMember implements Serializable {
         this.crewMemberAvailability = crewMemberAvailability;
     }
 
+    public boolean equals(CrewMember aCrewMember){
+        if (this.getCrewMemberId() == aCrewMember.getCrewMemberId())
+            return true;
+        else
+            return false;
+    }
+
+    public void printResource() {
+        System.out.print("Crew Member Number = " + this.crewMemberId +" and Crew Member Category =  "
+                + this.category +" with " + this.hourly_salary + " salary and " + this.seniority + " seniority. " );
+    }
 }

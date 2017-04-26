@@ -47,8 +47,6 @@ public class Flight implements Serializable{
         this.aircraft = aircraft;
     }
 
-
-
     public Double getPrice() {
         return this.cost;
     }
@@ -105,7 +103,31 @@ public class Flight implements Serializable{
         this.tripTime = tripTime;
     }
 
-    public void printFlgiht() {
+    public boolean equals(Flight f1){
+        if (this.getAircraft() != null) {
+            if (this.getAircraft().equals(f1.getAircraft())) {
+                for (int i = 0; i < crewMembers.size(); i++) {
+                    if (this.crewMembers.get(i).equals(f1.getCrewMembers().get(i)))
+                        continue;
+                    else
+                        return false;
+                }
+                return true;
+            } else
+                return false;
+        }
+        else {
+            for (int i = 0; i < crewMembers.size(); i++) {
+                if (this.crewMembers.get(i).equals(f1.getCrewMembers().get(i)))
+                    continue;
+                else
+                    return false;
+            }
+            return true;
+        }
+    }
+
+    public void printFlight() {
         System.out.print("Aircraft = " + this.aircraft+ ", Crew Members =  " + this.crewMembers +
                 ", fleet =  " + this.fleet +", departure =  " + this.scheduledDeparture +
                 ", trip time =  " + this.tripTime + " and " + delay + " ms delay.");
