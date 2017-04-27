@@ -95,10 +95,7 @@ public class CrewMember implements Serializable {
     }
 
     public boolean equals(CrewMember aCrewMember){
-        if (this.getCrewMemberId() == aCrewMember.getCrewMemberId())
-            return true;
-        else
-            return false;
+        return (Math.abs(hourly_salary - aCrewMember.getHourly_salary()) <  0.000000000001);
     }
 
     public void printResource() {

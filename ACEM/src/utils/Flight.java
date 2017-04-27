@@ -103,13 +103,11 @@ public class Flight implements Serializable{
         this.tripTime = tripTime;
     }
 
-    public boolean equals(Flight f1){
-        if (this.getAircraft() != null) {
+    public boolean equals(Flight aFlight){
+        /*if (this.getAircraft() != null) {
             if (this.getAircraft().equals(f1.getAircraft())) {
                 for (int i = 0; i < crewMembers.size(); i++) {
-                    if (this.crewMembers.get(i).equals(f1.getCrewMembers().get(i)))
-                        continue;
-                    else
+                    if (!this.crewMembers.get(i).equals(f1.getCrewMembers().get(i)))
                         return false;
                 }
                 return true;
@@ -118,13 +116,12 @@ public class Flight implements Serializable{
         }
         else {
             for (int i = 0; i < crewMembers.size(); i++) {
-                if (this.crewMembers.get(i).equals(f1.getCrewMembers().get(i)))
-                    continue;
-                else
+                if (!this.crewMembers.get(i).equals(f1.getCrewMembers().get(i)))
                     return false;
             }
             return true;
-        }
+        }*/
+        return (Math.abs(this.cost - aFlight.getPrice())< 0.000000000001);
     }
 
     public void printFlight() {

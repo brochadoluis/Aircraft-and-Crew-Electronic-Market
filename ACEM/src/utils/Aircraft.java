@@ -141,10 +141,10 @@ public class Aircraft implements Serializable {
     }
 
     public boolean equals(Aircraft anAircraft){
-        if (this.getTail_number().equalsIgnoreCase(anAircraft.getTail_number()))
-            return true;
-        else
-            return false;
+        return (Math.abs(this.atc_avg_cost_nautical_mile - anAircraft.getCostNauticalMile()) < 0.000000000001 &&
+                Math.abs(this.maintenance_avg_cost_minute - anAircraft.getMaintenanceCost()) < 0.000000000001 &&
+                Math.abs(this.fuel_avg_cost_minute - anAircraft.getFuelCost()) < 0.000000000001 &&
+                        Math.abs(this.airport_handling_cost - anAircraft.getAirportHandlingCost()) < 0.000000000001);
     }
 
     public void printResource() {

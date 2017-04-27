@@ -202,9 +202,9 @@ public class SellerAgent extends Agent implements Serializable{
                         System.out.println("Solutions  "  + solutions);
                         putResourcesIntoQueue(solutions);
                         queueHead = flightsQueue.peek();
-                        double displacementCosts = sumResourcesPrice(queueHead);
-                        minimumPrice = displacementCosts + (displacementCosts * 0.5);
-                        maximumPrice = displacementCosts + (displacementCosts * 2);
+                        double FlightCost = queueHead.getPrice();
+                        minimumPrice = FlightCost + (FlightCost * 0.5);
+                        maximumPrice = FlightCost + (FlightCost * 2);
                         long worstAvailability = getWorstAvailability(queueHead);
                         proposal = new Proposal(maximumPrice, worstAvailability, this.getAgent().getAID());
                         negotiationHistoric.put(round, proposal);
@@ -252,7 +252,7 @@ public class SellerAgent extends Agent implements Serializable{
             newCase.add(LOWER);
         }
         //Seller isn't available to lower the price
-        else if(rejectedProposal.getPrice() == minimumPrice){
+        else if(Math.abs(rejectedProposal.getPrice() - minimumPrice) < 0.000000000001){
             newCase.add(OK);
         }
         else
@@ -394,7 +394,7 @@ public class SellerAgent extends Agent implements Serializable{
             System.out.println("negotiationHistoric.get(round - 1) " + negotiationHistoric.get(round - 1));
             System.out.println("Round " + round);
             double previousRoundCaseEvaluation = evaluateOutcome(proposalToEvaluate,rejectedProposal);
-            int outcomeIndex = dataSet.addOutcome(previousRoundCaseEvaluation);
+            dataSet.addOutcome(previousRoundCaseEvaluation);
             System.out.println();
             ArrayList<String> newCase = createCase(rejectedProposal);
             ArrayList<String> action = new ArrayList<>();
@@ -658,11 +658,16 @@ public class SellerAgent extends Agent implements Serializable{
                     "FROM `thesis`.`aircraft`\n" +
                     "WHERE capacity >= "+ askedFlight.getAircraft().getCapacity() + "\n" +
                     "AND fleet = '"+ askedFlight.getFleet()+"';\n";
+                    //order por disponibilidade Desc e  (100% e disponibilidade na hora)
             crewQuery = "SELECT \uFEFFcrew_member_number, rank, seniority, hourly_salary, status\n" +
                     "FROM `thesis`.`crew_member`\n" +
                     "WHERE fleet LIKE '"+ askedFlight.getFleet() +"'\n" +
                     "AND status NOT LIKE 'PRG'" +
-                    "AND status NOT LIKE 'REF';";*/
+                    "AND status NOT LIKE 'REF';";
+            distanceQuery = "SELECT distance_in_nautical_miles\n" +
+                    "FROM `thesis`.`distances`\n" +
+                    "WHERE \uFEFForigin LIKE '"+ origin +"'\n" +
+                    "AND destination LIKE '"+ destination +"';";*/
             aircraftQuery = "SELECT \uFEFFtail_number, atc_avg_cost_nautical_mile,\n" +
                     "maintenance_avg_cost_minute, fuel_avg_cost_minute,\n" +
                     "airport_handling_cost, capacity, fleet,\n" +
@@ -670,12 +675,14 @@ public class SellerAgent extends Agent implements Serializable{
                     "FROM `test`.`aircraft`\n" +
                     "WHERE capacity >= "+ askedFlight.getAircraft().getCapacity() + "\n" +
                     "AND fleet = '"+ askedFlight.getFleet()+"';\n";
+            //order por disponibilidade Desc (100% e disponibilidade na hora) e so depois os preços
             crewQuery = "SELECT \uFEFFcrew_member_number, rank, seniority, hourly_salary, status\n" +
                     "FROM `test`.`crew_member`\n" +
                     "WHERE fleet LIKE '"+ askedFlight.getFleet() +"'\n" +
                     "AND status NOT LIKE 'PRG'" +
                     "AND status NOT LIKE 'REF'" +
                     "ORDER BY hourly_salary DESC, seniority ASC;";
+            //order por disponibilidade Desc (100% e disponibilidade na hora) e so depois o salario e seniority
             distanceQuery = "SELECT distance_in_nautical_miles\n" +
                     "FROM `test`.`distances`\n" +
                     "WHERE \uFEFForigin LIKE '"+ origin +"'\n" +
@@ -722,10 +729,9 @@ public class SellerAgent extends Agent implements Serializable{
         if (rsDistance != null) {
             ResultSetMetaData rsmdDistance;
             try {
-                rsmdDistance = rsDistance.getMetaData();
                 while (rsDistance.next()) {
                     //Extract crew Data
-                    distance = extractDistanceQueryData(rsDistance, rsmdDistance, rsmdDistance.getColumnCount());
+                    distance = extractDistanceQueryData(rsDistance);
                     //Match aircraft with crew
                 }
             } catch (SQLException e) {
@@ -746,73 +752,69 @@ public class SellerAgent extends Agent implements Serializable{
             } catch (SQLException e) {
                 e.printStackTrace();
             }
-        getBestFlights(availableCrew,availableAircraft.get(0),matchingResources,distance);
-        System.out.println("matching resources  = " + matchingResources);
-        for (Flight f1: matchingResources) {
-            f1.printFlight();
-            System.out.println("\n");
-        }
-        return matchingResources;
-    }
-        return null;
-}
-
-    private double extractDistanceQueryData(ResultSet rsDistance, ResultSetMetaData rsmdDistance, int columnCount) throws SQLException {
-        double distance = Double.parseDouble(rsDistance.getString(1).replace(",","."));
-        System.out.println("Distance read = " + distance);
-        return distance;
-    }
-
-    public ArrayList<Flight> getBestFlights(ArrayList<ArrayList<CrewMember>> allCrewList, Aircraft availableAircraft, ArrayList<Flight> bestThreeFlights, double distance){
-//        while(bestThreeFlights.size() < 3){
-        if (bestThreeFlights.isEmpty()){
-            System.out.println("Add flight to the flights list");
-            ArrayList<CrewMember> oneCombination = combineCrewMembers(allCrewList, availableAircraft, 0);
-            Flight f = new Flight();
-            f.setAircraft(availableAircraft);
-            f.setCrewMembers(oneCombination);
-            f.setFleet(fleet);
-            f.setTripTime(tripTime);
-            double flightTotalCost = getFlightTotalCost(f, distance);
-            System.out.println("Flight total cost " + flightTotalCost);
-            for (int i = 0; i < f.getCrewMembers().size();i++){
-                System.out.println("Salario por hora do " + f.getCrewMembers().get(i).getCategory() + " e " + f.getCrewMembers().get(i).getHourly_salary());
+            getBestFlights(availableCrew,availableAircraft,matchingResources,distance);
+            System.out.println("matching resources  = " + matchingResources);
+            for (Flight f: matchingResources) {
+                f.printFlight();
+                System.out.println("");
             }
-            f.setPrice(flightTotalCost);
-            bestThreeFlights.add(f);
-
-            //add flight because there isn't any
+            return matchingResources;
         }
+        return null;
+    }
+
+    private double extractDistanceQueryData(ResultSet rsDistance) throws SQLException {
+        return Double.parseDouble(rsDistance.getString(1).replace(",","."));
+    }
+
+    public ArrayList<Flight> getBestFlights(ArrayList<ArrayList<CrewMember>> allCrewList, ArrayList<Aircraft> availableAircraft, ArrayList<Flight> bestFlights, double distance){
         boolean existsEqualFlight = false;
-        if (!bestThreeFlights.isEmpty()){
-            if (bestThreeFlights.size() < 3){
-                for (int i = 0; i < 3; i++){
-                    ArrayList<CrewMember> oneCombination = combineCrewMembers(allCrewList, availableAircraft, i);
-                    Flight f = new Flight();
-                    f.setAircraft(availableAircraft);
-                    f.setCrewMembers(oneCombination);
-                    f.getAircraft().printResource();
-                    for (Flight flight:bestThreeFlights) {
-                        if (flight.equals(f))
-                            existsEqualFlight = true;
+        for (int i = 0; i < availableAircraft.size(); i++){
+            double flightTotalCost;
+            ArrayList<ArrayList<CrewMember>> allCombinations = combineCrewMembers(allCrewList, availableAircraft.get(i));
+            System.out.println("AirCraft " + availableAircraft.get(i) + " ALL COMBINATIONS " + allCombinations);
+            if (allCombinations != null){
+                for (ArrayList<CrewMember> cmList: allCombinations) {
+                    Flight aFlight = new Flight();
+                    aFlight.setAircraft(availableAircraft.get(i));
+                    aFlight.setCrewMembers(cmList);
+                    flightTotalCost = getFlightTotalCost(aFlight, distance);
+                    aFlight.setPrice(flightTotalCost);
+                    if (!bestFlights.isEmpty()){
+                        for (Flight flight : bestFlights) {
+                            if (flight.equals(aFlight))
+                                existsEqualFlight = true;
+                        }
+                        if (existsEqualFlight){
+                            System.out.println("Flight not added");
+//                System.out.println("Aircraft ID " + availableAircraft.get(i).getTail_number());
+                            existsEqualFlight = false;
+                        }
+                        else{
+                            aFlight.setTripTime(tripTime);
+                            aFlight.setFleet(fleet);
+//                    aFlight.printFlight();
+                            System.out.println("Flight added");
+                            System.out.println("Aircraft ID " + availableAircraft.get(i).getTail_number());
+                            bestFlights.add(aFlight);
+                        }
+                    } else {
+                        aFlight.setFleet(fleet);
+                        aFlight.setTripTime(tripTime);
+                        aFlight.setCrewMembers(cmList);
+                        flightTotalCost = getFlightTotalCost(aFlight, distance);
+                        aFlight.setPrice(flightTotalCost);
+                        bestFlights.add(aFlight);
+
                     }
-                    if (existsEqualFlight){
-                        System.out.println("Flight not added");
-                        existsEqualFlight = false;
-                        continue;
-                    }
-                    else{
-                        f.setFleet(fleet);
-                        f.printFlight();
-                        System.out.println("Flight added");
-                        bestThreeFlights.add(f);
-                    }
+
                 }
+//            aFlight.setCrewMembers(oneCombination);
             }
             else
-                return bestThreeFlights;
+                break;
         }
-        return bestThreeFlights;
+        return bestFlights;
     }
 
     private double getFlightTotalCost(Flight flight, double distance) {
@@ -822,83 +824,119 @@ public class SellerAgent extends Agent implements Serializable{
                 flight.getAircraft().getMaintenanceCost() * tripTimeInMinutes +
                 flight.getAircraft().getFuelCost() * tripTimeInMinutes +
                 flight.getAircraft().getAirportHandlingCost();
-        System.out.println("flight.getAircraft().getMaintenanceCost() " + flight.getAircraft().getMaintenanceCost() * tripTimeInMinutes);
-        System.out.println("Aircraft total cost " + aircraftCost);
+//        System.out.println("flight.getAircraft().getMaintenanceCost() " + flight.getAircraft().getMaintenanceCost() * tripTimeInMinutes);
+//        System.out.println("Aircraft total cost " + aircraftCost);
         double crewCost = 0;
         for (int i = 0; i < flight.getCrewMembers().size();i++){
-            System.out.println("Baby steps " + (flight.getCrewMembers().get(i).getHourly_salary()*tripTimeInHours));
-            System.out.println("tripTimeInHours " + tripTimeInHours);
+//            System.out.println("Baby steps " + (flight.getCrewMembers().get(i).getHourly_salary()*tripTimeInHours));
+//            System.out.println("tripTimeInHours " + tripTimeInHours);
             crewCost += flight.getCrewMembers().get(i).getHourly_salary()*tripTimeInHours;
-            System.out.println("Crew step cost " + crewCost);
+//            System.out.println("Crew step cost " + crewCost);
         }
-        System.out.println("Crew total cost " + crewCost);
+//        System.out.println("Crew total cost " + crewCost);
         return (aircraftCost + crewCost);
     }
 
-    private ArrayList<CrewMember> combineCrewMembers(ArrayList<ArrayList<CrewMember>> allCrewList, Aircraft availableAircraft, int index) {
+    private ArrayList<ArrayList<CrewMember>> combineCrewMembers(ArrayList<ArrayList<CrewMember>> allCrewList, Aircraft availableAircraft) {
+        ArrayList<ArrayList<CrewMember>> allCombinationsForAircraft = new ArrayList<>();
         ArrayList<CrewMember> combination = new ArrayList<>();
-        int cptsNeeded = availableAircraft.getCptNumber();
-        int optsNeeded = availableAircraft.getOptNumber();
-        int scbsNeeded = availableAircraft.getScbNumber();
-        int ccbsNeeded = availableAircraft.getCcbNumber();
-        int cabsNeeded = availableAircraft.getCabNumber();
-        boolean atTheEnd = false;
-        for (int i = 0; i < allCrewList.size(); i++){
-            for (int j = index; j < allCrewList.get(i).size(); j++){
-                if (atTheEnd){
-                    j = 0;
-                    atTheEnd = false;
-                }
-                if (i == 0 && cptsNeeded > 0){
-                    combination.add(allCrewList.get(i).get(j));
-                    cptsNeeded-=1;
-                    if(j == allCrewList.get(i).size()-1 && cptsNeeded != 0){
-                        j = 0;
-                        atTheEnd = true;
-                        continue;
+        ArrayList<CrewMember> previousCombination = new ArrayList<>();
+        int lastCptIndex = -1;
+        int lastOptIndex = -1;
+        int lastScbIndex = -1;
+        int lastCcbIndex = -1;
+        int lastCabIndex = -1;
+
+        for (int j = 0; j < allCrewList.size(); j++) {
+            int cptsNeeded = availableAircraft.getCptNumber();
+            int optsNeeded = availableAircraft.getOptNumber();
+            int scbsNeeded = availableAircraft.getScbNumber();
+            int ccbsNeeded = availableAircraft.getCcbNumber();
+            int cabsNeeded = availableAircraft.getCabNumber();
+            for (int k = 0; k < allCrewList.get(j).size(); k++) {
+                if (allCombinationsForAircraft.size() > 1) {
+                    previousCombination = allCombinationsForAircraft.get(allCombinationsForAircraft.size() - 1);
+                    if (j == 0 && cptsNeeded > 0 && lastCptIndex != -1) {
+                        k = lastCptIndex;
+                        if (previousCombination.get(k).getHourly_salary() != allCrewList.get(j).get(k).getHourly_salary()) {
+                            combination.add(allCrewList.get(j).get(k));
+                            cptsNeeded -= 1;
+                            lastCptIndex = k;
+                        } else
+                            continue;
+                    }
+                    if (j == 1 && optsNeeded > 0 && lastOptIndex != -1) {
+                        k = lastOptIndex;
+                        if (previousCombination.get(k).getHourly_salary() != allCrewList.get(j).get(k).getHourly_salary()) {
+                            combination.add(allCrewList.get(j).get(k));
+                            optsNeeded -= 1;
+                            lastOptIndex = k;
+                        } else
+                            continue;
+                    }
+                    if (j == 2 && scbsNeeded > 0 && lastScbIndex != -1) {
+                        k = lastScbIndex;
+                        if (previousCombination.get(k).getHourly_salary() != allCrewList.get(j).get(k).getHourly_salary()) {
+                            combination.add(allCrewList.get(j).get(k));
+                            scbsNeeded -= 1;
+                            lastScbIndex = k;
+                        } else
+                            continue;
+                    }
+                    if (j == 3 && ccbsNeeded > 0 && lastCcbIndex != -1) {
+                        k = lastCcbIndex;
+                        if (previousCombination.get(k).getHourly_salary() != allCrewList.get(j).get(k).getHourly_salary()) {
+                            combination.add(allCrewList.get(j).get(k));
+                            ccbsNeeded -= 1;
+                            lastCcbIndex = k;
+                        } else
+                            continue;
+                    }
+                    if (j == 4 && cabsNeeded > 0 && lastCabIndex != -1) {
+                        k = lastCabIndex;
+                        if (previousCombination.get(k).getHourly_salary() != allCrewList.get(j).get(k).getHourly_salary()) {
+                            combination.add(allCrewList.get(j).get(k));
+                            cabsNeeded -= 1;
+                            lastCabIndex = k;
+                        }
                     }
                 }
-                if (i == 1 && optsNeeded > 0){
-                    combination.add(allCrewList.get(i).get(j));
-                    optsNeeded-=1;
-                    if(j == allCrewList.get(i).size()-1 && optsNeeded != 0){
-                        j = 0;
-                        atTheEnd = true;
-                        continue;
+                else {
+                    if (j == 0 && cptsNeeded > 0) {
+                        combination.add(allCrewList.get(j).get(k));
+                        cptsNeeded -= 1;
+                        lastCptIndex = k;
                     }
-                }
-                if (i == 2 && scbsNeeded > 0){
-                    combination.add(allCrewList.get(i).get(j));
-                    scbsNeeded-=1;
-                    if(j == allCrewList.get(i).size()-1 && scbsNeeded != 0){
-                        j = 0;
-                        atTheEnd = true;
-                        continue;
+                    if (j == 1 && optsNeeded > 0) {
+                        combination.add(allCrewList.get(j).get(k));
+                        optsNeeded -= 1;
+                        lastOptIndex = k;
                     }
-                }
-                if (i == 3 && ccbsNeeded > 0){
-                    combination.add(allCrewList.get(i).get(j));
-                    ccbsNeeded-=1;
-                    if(j == allCrewList.get(i).size()-1 && ccbsNeeded != 0){
-                        j = 0;
-                        atTheEnd = true;
-                        continue;
+                    if (j == 2 && scbsNeeded > 0) {
+                        combination.add(allCrewList.get(j).get(k));
+                        scbsNeeded -= 1;
+                        lastScbIndex = k;
                     }
-                }
-                if (i == 4 && cabsNeeded > 0){
-                    combination.add(allCrewList.get(i).get(j));
-                    cabsNeeded-=1;
-                    if(j == allCrewList.get(i).size()-1 && cabsNeeded != 0){
-                        j = 0;
-                        atTheEnd = true;
-                        continue;
+                    if (j == 3 && ccbsNeeded > 0) {
+                        combination.add(allCrewList.get(j).get(k));
+                        ccbsNeeded -= 1;
+                        lastCcbIndex = k;
+                    }
+                    if (j == 4 && cabsNeeded > 0) {
+                        combination.add(allCrewList.get(j).get(k));
+                        cabsNeeded -= 1;
+                        lastCabIndex = k;
                     }
                 }
             }
         }
-        if (cptsNeeded != 0 || optsNeeded != 0 || scbsNeeded != 0 || ccbsNeeded != 0 || cabsNeeded != 0)
+        allCombinationsForAircraft.add(combination);
+        /*if (cptsNeeded != 0 || optsNeeded != 0 || scbsNeeded != 0 || ccbsNeeded != 0 || cabsNeeded != 0){
             System.out.println("Esta a falhar qualquer coisa");
-        return combination;
+            continue;
+        }
+        else*/
+        return allCombinationsForAircraft;
     }
 
     private ArrayList<ArrayList <CrewMember>> extractCrewQueryData(ResultSet rsCrew, ResultSetMetaData rsmdCrew, int columnCount, ArrayList<ArrayList<CrewMember>> availableCrew) throws SQLException {
@@ -913,8 +951,6 @@ public class SellerAgent extends Agent implements Serializable{
         cm.setHourly_salary(hourly_salary);
         cm.printResource();
         addCrewMemberToList(availableCrew, cm);
-        System.out.println("\n\n\nAvailable Crew = " + availableCrew);
-        System.out.println("CAB size " + availableCrew.get(3).size());
         return availableCrew;
     }
 
