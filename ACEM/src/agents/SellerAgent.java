@@ -29,7 +29,6 @@ import java.util.*;
 import java.util.logging.Level;
 
 
-
 /**
  * Created by Luis on 21/02/2017.
  */
@@ -517,50 +516,10 @@ public class SellerAgent extends Agent implements Serializable{
      * @param askedFlight: Resources received in ACL Message
      */
     private ArrayList<Flight> getAvailableMatchingResources(Flight askedFlight) {
-        ArrayList<Flight> availableResources = new ArrayList<>();
-//        ArrayList<ArrayList<Resource>> allResourcesCombinations = new ArrayList<>();
-/*        Flight f1 = new Flight();
-        Flight f2 = new Flight();
-        Aircraft a1 = new Aircraft(396);
-        a1.setTail_number("ASD");
-        a1.setAvailability(0L);
-        f1.setAircraft(a1);
-        Aircraft a2 = new Aircraft(396);
-        a2.setTail_number("ASD");
-        a2.setAvailability(0L);
-        f2.setAircraft(a2);
-        System.out.println("a1.equals(a2);" +a1.equals(a2));
-//        f1.setAircraft(a2);
-        CrewMember cm1 = new CrewMember();
-        cm1.setAvailability(129000L);
-        CrewMember cm2 = new CrewMember();
-        CrewMember cm3 = new CrewMember();
-        CrewMember cm4 = new CrewMember();
-        cm1.setCrewMemberId(123.12);
-        cm2.setCrewMemberId(123.11);
-        cm3.setCrewMemberId(123.12);
-        cm4.setCrewMemberId(123.11);
-
-        System.out.println("cm1.equals(cm2);" +cm1.equals(cm2));
-
-        System.out.println("Available resources "+ f1);
-        f1.printFlight();
-        availableResources.add(f1);
-        ArrayList<CrewMember> cms1 = new ArrayList<>();
-        ArrayList<CrewMember> cms2 = new ArrayList<>();
-        cms1.add(cm1);
-        cms2.add(cm3);
-        cms2.add(cm2);
-        cms1.add(cm4);
-        f1.setCrewMembers(cms1);
-        f2.setCrewMembers(cms2);
-
-        boolean commonList = f1.equals(f2);
-        System.out.println("Equal Flights? " + commonList);*/
+        ArrayList<Flight> availableResources;
         db = new Loader();
         db.establishConnection();
         availableResources = findSimilarResources(askedFlight);
-//        convert ResultSet to ArrayList?
 
         /**
          * For each askedResource, create an ArrayList<Resource> where the resource to fetch in the DB
@@ -596,49 +555,9 @@ public class SellerAgent extends Agent implements Serializable{
          * Otherwise, the more negative the better.
          */
 
-        /*
-        Resource r2  = new Aircraft("Boeing 777", 396);
-        r2.setPrice(23543.23D);
-        r2.setAvailability(10000L);
-        Resource r3 = new Aircraft("Boeing 767", 400);;
-        r3.setPrice(31423.89D);
-        r3.setAvailability(0L);
-        Resource r4 = new Aircraft("Airbus A330-200 Freighter", 407);
-        r4.setPrice(451123.51D);
-        r4.setAvailability(9000L);
-
-        Resource r6 = new CrewMember(2, "Pilot", "English A2");
-        r6.setPrice(65333.21D);
-        r6.setAvailability(0L);
-        switch (this.getLocalName()){
-            case "Seller1":
-                availableResources.add(r1);
-                availableResources.add(r5);
-                break;
-            case "Seller2":
-                availableResources.add(r3);
-                availableResources.add(r6);
-                break;
-            default:
-                break;
-        }*/
         logger.log(Level.INFO,"Available Resources {0}", availableResources);
         //The query returns resources within the parameters, so there's no reason to compare
-/*
 
-        for (int i = 0; i < availableResources.size(); i++) {
-            for (int j = i; j < availableResources.size(); j++) {
-                if (availableResources.get(i).getClass() != availableResources.get(j).getClass()) {
-                    ArrayList<Resource> combination = new ArrayList<>();
-                    combination.ensureCapacity(askedFlight.size());
-                    combination.add(availableResources.get(i));
-                    combination.add(availableResources.get(j));
-                    allResourcesCombinations.add(combination);
-                    continue;
-                }
-            }
-        }
-        return allResourcesCombinations;*/
         return availableResources;
     }
 
@@ -754,10 +673,6 @@ public class SellerAgent extends Agent implements Serializable{
             }
             getBestFlights(availableCrew,availableAircraft,matchingResources,distance);
             System.out.println("matching resources  = " + matchingResources);
-            for (Flight f: matchingResources) {
-                f.printFlight();
-                System.out.println("");
-            }
             return matchingResources;
         }
         return null;
@@ -769,10 +684,10 @@ public class SellerAgent extends Agent implements Serializable{
 
     public ArrayList<Flight> getBestFlights(ArrayList<ArrayList<CrewMember>> allCrewList, ArrayList<Aircraft> availableAircraft, ArrayList<Flight> bestFlights, double distance){
         boolean existsEqualFlight = false;
+        ArrayList<ArrayList<CrewMember>> allCombinations = combineAllCrewMembers(allCrewList, availableAircraft.get(0));
         for (int i = 0; i < availableAircraft.size(); i++){
             double flightTotalCost;
-            ArrayList<ArrayList<CrewMember>> allCombinations = combineCrewMembers(allCrewList, availableAircraft.get(i));
-            System.out.println("AirCraft " + availableAircraft.get(i) + " ALL COMBINATIONS " + allCombinations);
+//            System.out.println("AirCraft " + availableAircraft.get(0) + " ALL COMBINATIONS " + allCombinations);
             if (allCombinations != null){
                 for (ArrayList<CrewMember> cmList: allCombinations) {
                     Flight aFlight = new Flight();
@@ -795,7 +710,7 @@ public class SellerAgent extends Agent implements Serializable{
                             aFlight.setFleet(fleet);
 //                    aFlight.printFlight();
                             System.out.println("Flight added");
-                            System.out.println("Aircraft ID " + availableAircraft.get(i).getTail_number());
+                            System.out.println("Aircraft ID " + availableAircraft.get(0).getTail_number());
                             bestFlights.add(aFlight);
                         }
                     } else {
@@ -837,106 +752,131 @@ public class SellerAgent extends Agent implements Serializable{
         return (aircraftCost + crewCost);
     }
 
-    private ArrayList<ArrayList<CrewMember>> combineCrewMembers(ArrayList<ArrayList<CrewMember>> allCrewList, Aircraft availableAircraft) {
-        ArrayList<ArrayList<CrewMember>> allCombinationsForAircraft = new ArrayList<>();
-        ArrayList<CrewMember> combination = new ArrayList<>();
-        ArrayList<CrewMember> previousCombination = new ArrayList<>();
-        int lastCptIndex = -1;
-        int lastOptIndex = -1;
-        int lastScbIndex = -1;
-        int lastCcbIndex = -1;
-        int lastCabIndex = -1;
+    private ArrayList<ArrayList<CrewMember>> combineAllCrewMembers(ArrayList<ArrayList<CrewMember>> allCrewList, Aircraft availableAircraft) {
+        ArrayList<ArrayList<CrewMember>> allCombinationsForAircraft;
+        ArrayList<ArrayList<Integer>> differentCrewMembers = new ArrayList<>();
+        ArrayList<ArrayList<Integer>> combinedCrews;
+        differentCrewMembers.ensureCapacity(allCrewList.size());
+        for (int i = 0; i < allCrewList.size(); i++){
+            differentCrewMembers.add(getDifferentCrewMembers(i, allCrewList));
+        }
+        System.out.println("\nDifferente crew members " + differentCrewMembers);
+        combinedCrews = combineDifferentIndexes(differentCrewMembers,allCrewList);
+        allCombinationsForAircraft = createCrews(availableAircraft,combinedCrews,allCrewList);
 
-        for (int j = 0; j < allCrewList.size(); j++) {
-            int cptsNeeded = availableAircraft.getCptNumber();
-            int optsNeeded = availableAircraft.getOptNumber();
-            int scbsNeeded = availableAircraft.getScbNumber();
-            int ccbsNeeded = availableAircraft.getCcbNumber();
-            int cabsNeeded = availableAircraft.getCabNumber();
-            for (int k = 0; k < allCrewList.get(j).size(); k++) {
-                if (allCombinationsForAircraft.size() > 1) {
-                    previousCombination = allCombinationsForAircraft.get(allCombinationsForAircraft.size() - 1);
-                    if (j == 0 && cptsNeeded > 0 && lastCptIndex != -1) {
-                        k = lastCptIndex;
-                        if (previousCombination.get(k).getHourly_salary() != allCrewList.get(j).get(k).getHourly_salary()) {
-                            combination.add(allCrewList.get(j).get(k));
-                            cptsNeeded -= 1;
-                            lastCptIndex = k;
-                        } else
-                            continue;
-                    }
-                    if (j == 1 && optsNeeded > 0 && lastOptIndex != -1) {
-                        k = lastOptIndex;
-                        if (previousCombination.get(k).getHourly_salary() != allCrewList.get(j).get(k).getHourly_salary()) {
-                            combination.add(allCrewList.get(j).get(k));
-                            optsNeeded -= 1;
-                            lastOptIndex = k;
-                        } else
-                            continue;
-                    }
-                    if (j == 2 && scbsNeeded > 0 && lastScbIndex != -1) {
-                        k = lastScbIndex;
-                        if (previousCombination.get(k).getHourly_salary() != allCrewList.get(j).get(k).getHourly_salary()) {
-                            combination.add(allCrewList.get(j).get(k));
-                            scbsNeeded -= 1;
-                            lastScbIndex = k;
-                        } else
-                            continue;
-                    }
-                    if (j == 3 && ccbsNeeded > 0 && lastCcbIndex != -1) {
-                        k = lastCcbIndex;
-                        if (previousCombination.get(k).getHourly_salary() != allCrewList.get(j).get(k).getHourly_salary()) {
-                            combination.add(allCrewList.get(j).get(k));
-                            ccbsNeeded -= 1;
-                            lastCcbIndex = k;
-                        } else
-                            continue;
-                    }
-                    if (j == 4 && cabsNeeded > 0 && lastCabIndex != -1) {
-                        k = lastCabIndex;
-                        if (previousCombination.get(k).getHourly_salary() != allCrewList.get(j).get(k).getHourly_salary()) {
-                            combination.add(allCrewList.get(j).get(k));
-                            cabsNeeded -= 1;
-                            lastCabIndex = k;
-                        }
-                    }
-                }
-                else {
-                    if (j == 0 && cptsNeeded > 0) {
-                        combination.add(allCrewList.get(j).get(k));
-                        cptsNeeded -= 1;
-                        lastCptIndex = k;
-                    }
-                    if (j == 1 && optsNeeded > 0) {
-                        combination.add(allCrewList.get(j).get(k));
-                        optsNeeded -= 1;
-                        lastOptIndex = k;
-                    }
-                    if (j == 2 && scbsNeeded > 0) {
-                        combination.add(allCrewList.get(j).get(k));
-                        scbsNeeded -= 1;
-                        lastScbIndex = k;
-                    }
-                    if (j == 3 && ccbsNeeded > 0) {
-                        combination.add(allCrewList.get(j).get(k));
-                        ccbsNeeded -= 1;
-                        lastCcbIndex = k;
-                    }
-                    if (j == 4 && cabsNeeded > 0) {
-                        combination.add(allCrewList.get(j).get(k));
-                        cabsNeeded -= 1;
-                        lastCabIndex = k;
+        return allCombinationsForAircraft;
+    }
+
+    private ArrayList<ArrayList<CrewMember>> createCrews(Aircraft availableAircraft, ArrayList<ArrayList<Integer>> combinedCrews, ArrayList<ArrayList<CrewMember>> allCrewList) {
+        ArrayList<Integer> crewMembersNeeded = new ArrayList<>();
+        crewMembersNeeded.add(availableAircraft.getCptNumber());
+        crewMembersNeeded.add(availableAircraft.getOptNumber());
+        crewMembersNeeded.add(availableAircraft.getScbNumber());
+        crewMembersNeeded.add(availableAircraft.getCcbNumber());
+        crewMembersNeeded.add(availableAircraft.getCabNumber());
+        ArrayList<ArrayList<CrewMember>> allCrewsForAircraft = new ArrayList<>();
+        ArrayList<ArrayList<Integer>> requiredCombinations = removeUnnecessaryCombinations(combinedCrews,crewMembersNeeded);
+        for (int i = 0; i < requiredCombinations.size(); i++) {
+            ArrayList<Integer> currentCrew = requiredCombinations.get(i);
+            ArrayList<CrewMember> aCrew = addNecessaryCrewMembers(allCrewList, crewMembersNeeded, currentCrew);
+            allCrewsForAircraft.add(aCrew);
+        }
+        return allCrewsForAircraft;
+    }
+
+    private ArrayList<ArrayList<Integer>> removeUnnecessaryCombinations(ArrayList<ArrayList<Integer>> combinedCrews, ArrayList<Integer> crewMembersNeeded) {
+        ArrayList<ArrayList<Integer>> updatedCombinedCrews = new ArrayList<>();
+        for (int i = 0; i < crewMembersNeeded.size(); i++){
+            if (crewMembersNeeded.get(i) == 0){
+                int value = combinedCrews.get(i).get(0);
+                for (int j = 0; j < combinedCrews.size();j++){
+                    if (combinedCrews.get(j).get(i) == value){
+                        updatedCombinedCrews.add(combinedCrews.get(j));
                     }
                 }
             }
         }
-        allCombinationsForAircraft.add(combination);
-        /*if (cptsNeeded != 0 || optsNeeded != 0 || scbsNeeded != 0 || ccbsNeeded != 0 || cabsNeeded != 0){
-            System.out.println("Esta a falhar qualquer coisa");
-            continue;
+        return updatedCombinedCrews;
+    }
+
+    private ArrayList<CrewMember> addNecessaryCrewMembers(ArrayList<ArrayList<CrewMember>> allCrewList, ArrayList<Integer> crewMembersNeeded, ArrayList<Integer> currentCrew) {
+        ArrayList<CrewMember> oneCrew = new ArrayList<>();
+        for (int i = 0; i < currentCrew.size();i++){
+            if (crewMembersNeeded.get(i) != 0){
+                int index = currentCrew.get(i);
+                CrewMember cmToBeAdded = allCrewList.get(i).get(index);
+                oneCrew.add(cmToBeAdded);
+                if (oneCrew.size() < crewMembersNeeded.get(i)){
+                    index++;
+                    while (oneCrew.size() < crewMembersNeeded.get(i)){
+                        CrewMember anotherCmToBeAdded = allCrewList.get(i).get(index);
+                        oneCrew.add(anotherCmToBeAdded);
+                        index++;
+                    }
+                }
+            }
         }
-        else*/
-        return allCombinationsForAircraft;
+        return oneCrew;
+    }
+
+    //Refactor this method
+    private ArrayList<ArrayList<Integer>> combineDifferentIndexes(ArrayList<ArrayList<Integer>> differentCrewMembers, ArrayList<ArrayList<CrewMember>> allCrewList) {
+        ArrayList<ArrayList<Integer>> allCombinations = new ArrayList<>();
+        for (int cptIndex = 0; cptIndex < differentCrewMembers.get(0).size(); cptIndex++){
+            for (int optIndex = 0; optIndex < differentCrewMembers.get(1).size(); optIndex++){
+                for (int scbIndex = 0; scbIndex < differentCrewMembers.get(2).size(); scbIndex++){
+                    for (int ccbIndex = 0; ccbIndex < differentCrewMembers.get(3).size(); ccbIndex++){
+                        for (int cabIndex = 0; cabIndex < differentCrewMembers.get(4).size(); cabIndex++){
+                            ArrayList<Integer> combination = new ArrayList<>();
+                            combination.add(differentCrewMembers.get(0).get(cptIndex));
+                            combination.add(differentCrewMembers.get(1).get(optIndex));
+                            combination.add(differentCrewMembers.get(2).get(scbIndex));
+                            combination.add(differentCrewMembers.get(3).get(ccbIndex));
+                            combination.add(differentCrewMembers.get(4).get(cabIndex));
+                            allCombinations.add(combination);
+                        }
+                    }
+                }
+            }
+        }
+        return allCombinations;
+    }
+
+    public void permute(String array[][], int index, ArrayList<String> output){
+
+        if(index == array.length){
+            System.out.println(output.toString());
+        }
+        else{
+            for(int i=0 ; i<array[index].length ; i++){
+                output.add(array[index][i]);
+                permute(array,index+1,output);
+                output.remove(output.size() - 1);
+            }
+        }
+    }
+
+    private ArrayList<Integer> getDifferentCrewMembers(int rank, ArrayList<ArrayList<CrewMember>> allCrewList) {
+        ArrayList<Integer> differentCrewMembers = new ArrayList<>();
+        boolean alreadyExists = false;
+        for(int i = 0; i < allCrewList.get(rank).size();i++){
+            if (i != 0){
+                for(int j = 0; j < differentCrewMembers.size(); j++){
+                    //also consider availability when implemented
+                    if (allCrewList.get(rank).get(i).equals(allCrewList.get(rank).get(differentCrewMembers.get(j))))
+//                    if (allCrewList.get(rank).get(i).getHourly_salary() == allCrewList.get(rank).get(differentCrewMembers.get(j)).getHourly_salary())
+                        alreadyExists = true;
+                }
+                if (!alreadyExists){
+                    differentCrewMembers.add(i);
+                }
+                alreadyExists = false;
+            }
+            else {
+                differentCrewMembers.add(i);
+            }
+        }
+        return differentCrewMembers;
     }
 
     private ArrayList<ArrayList <CrewMember>> extractCrewQueryData(ResultSet rsCrew, ResultSetMetaData rsmdCrew, int columnCount, ArrayList<ArrayList<CrewMember>> availableCrew) throws SQLException {

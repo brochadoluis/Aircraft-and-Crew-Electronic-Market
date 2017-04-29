@@ -121,7 +121,7 @@ public class Flight implements Serializable{
             }
             return true;
         }*/
-        return (Math.abs(this.cost - aFlight.getPrice())< 0.000000000001);
+        return ((Math.abs(this.cost - aFlight.getPrice())< 0.000000000001));
     }
 
     public void printFlight() {
