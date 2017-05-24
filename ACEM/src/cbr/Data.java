@@ -85,20 +85,32 @@ public class Data {
         return index;
     }
 
+    /**
+     * Update only in the last iteration, or update after each round?
+     * @param newOutcome
+     * @param line
+     * @return
+     */
     public double recencyOutcome(double newOutcome,int line){
         double oldOutcome = Double.parseDouble(data.get(line).get(lineSize-1));
         data.get(line).remove(lineSize-1);
         //This way, the outcome has 3 decimal places
-        double updatedOutcome = ((oldOutcome * 0.2 + newOutcome * 0.8)*1000)/1000;
+        double updatedOutcome = ((oldOutcome * 0.2 + newOutcome * 0.8));//*1000)/1000;
         data.get(line).add(String.valueOf(updatedOutcome));
-        return ((oldOutcome * 0.2 + newOutcome * 0.8)*1000)/1000;
+        return ((oldOutcome * 0.2 + newOutcome * 0.8));//*1000)/1000;
     }
 
     public ArrayList<Integer> getEuclideanDistances(ArrayList<String> newCase){
         return cbr.getEuclideanDistances(newCase,this);
     }
 
-
+    /**
+     * Replace this method with simulated annealing
+     * simulated annealing copied from here
+     * http://www.theprojectspot.com/tutorial-post/simulated-annealing-algorithm-for-beginners/6
+     * @param indexes
+     * @return
+     */
     public int getBestEvaluation(ArrayList<Integer> indexes) {
         int index = -1;
         double maximum = 0.0;
@@ -107,15 +119,24 @@ public class Data {
             double currentEvaluation = Double.parseDouble(getOutcome(indexes.get(i)));
             if(index < 0 && maximum <= currentEvaluation){
                 maximum = currentEvaluation;
-                index = i+1;
+                index = indexes.get(i);
             }
             if(maximum < currentEvaluation){
                 maximum = currentEvaluation;
-                index = i+1;
+                index = indexes.get(i);
             }
             else
                 continue;
         }
+        return index;
+    }
+
+    public int getCaseToApply(ArrayList<Integer> indexes){
+        int index = -1;
+        double temperature = 100;
+        double coolingRate = 0.3;
+
+
         return index;
     }
 
@@ -147,6 +168,20 @@ public class Data {
         action.add(data.get(line).get(lineSize-2));
 
         return action;
+    }
+
+    public boolean checkIfActionExists(ArrayList<String> action, ArrayList<Integer> indexes){
+        for (int i = 0; i < indexes.size(); i++){
+            int index = indexes.get(i);
+            ArrayList<String> caseAction = new ArrayList<>();
+            caseAction.add(data.get(index).get(lineSize-3));
+            System.out.println("data.get(index).get(lineSize-3) " + data.get(index).get(lineSize-3) );
+            caseAction.add(data.get(index).get(lineSize-2));
+            System.out.println("data.get(index).get(lineSize-2) " + data.get(index).get(lineSize-2));
+            if (action.get(0).equalsIgnoreCase(caseAction.get(0)) && action.get(1).equalsIgnoreCase(caseAction.get(1)))
+                return true;
+        }
+        return false;
     }
 
     public String getOutcome(int line){

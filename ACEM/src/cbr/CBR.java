@@ -79,12 +79,12 @@ public class CBR {
         for(int i = 0; i < newCaseInt.size(); i++){
 //            log.write(" newCase.get(i) " + newCase.get(i));
 //            log.write(" data.get(0).get(i) " + data.getLine(0).get(i));
-            log.write("(newCaseInt.get(i) - dataSetCaseInt.get(i) " + (newCaseInt.get(i) - dataSetCaseInt.get(i)));
+//            log.write("(newCaseInt.get(i) - dataSetCaseInt.get(i) " + (newCaseInt.get(i) - dataSetCaseInt.get(i)));
             sum += Math.pow(newCaseInt.get(i) - dataSetCaseInt.get(i),2.0) * featuresWeights.get(data.getLine(0).get(i));
 
         }
         euclideanDistance = Math.sqrt(sum);
-        log.write("Euclidean Distance = " + euclideanDistance);
+//        log.write("Euclidean Distance = " + euclideanDistance);
 
         return euclideanDistance;
     }
@@ -92,9 +92,9 @@ public class CBR {
     private ArrayList<Integer> findLowest(ArrayList<Double> euclideanDistances) {
         ArrayList<Integer> indexes = new ArrayList<>();
         for(int i = 0; i < euclideanDistances.size(); i++){
-            System.out.println(" euclideanDistances.get(i) = " + euclideanDistances.get(i));
-            System.out.println(" (euclideanDistances.get(i) == 0.0) = " + (euclideanDistances.get(i) == 0.0));
-            System.out.println(" euclideanDistances.get(i) = " + euclideanDistances.get(i));
+            System.out.println(" euclideanDistances.get( "+ i +" ) = " + euclideanDistances.get(i));
+            System.out.println(" (euclideanDistances.get( "+ i +" ) == 0.0) = " + (euclideanDistances.get(i) == 0.0));
+            System.out.println(" euclideanDistances.get( "+ i +" ) = " + euclideanDistances.get(i));
             if(euclideanDistances.get(i) == 0.0){
                 indexes.add(i+1);
             }
@@ -109,7 +109,7 @@ public class CBR {
     private ArrayList<Integer> CommentsToInt(ArrayList<String> aCase) {
         ArrayList<Integer> commentValues = new ArrayList<>();
         for(int i = 0; i < data.getNumFeatures(); i++){
-            log.write("aCase size " + aCase.get(i));
+//            log.write("aCase size " + aCase.get(i));
             switch (aCase.get(i)){
                 case "OK":
                     commentValues.add(0);
@@ -142,6 +142,6 @@ public class CBR {
                     break;
             }
         }
-        log.write("features weights " + featuresWeights);
+//        log.write("features weights " + featuresWeights);
     }
 }

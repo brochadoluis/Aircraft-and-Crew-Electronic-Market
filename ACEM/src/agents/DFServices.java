@@ -96,4 +96,28 @@ public class DFServices {
         }
         return null;
     }
+
+    protected ArrayList<AID> searchAllSellers(Agent a)    {
+        DFAgentDescription dfd = new DFAgentDescription();
+        ServiceDescription sd = new ServiceDescription();
+        //sd.setType( service );
+        //dfd.addServices(sd);
+
+        SearchConstraints ALL = new SearchConstraints();
+        ALL.setMaxResults(new Long(-1));
+
+        try
+        {
+            DFAgentDescription[] result = DFService.search(a, dfd, ALL);
+            ArrayList<AID> agents = new ArrayList<>();
+            for (int i=0; i<result.length; i++) {
+                agents.add(result[i].getName());
+            }
+            return agents;
+        }
+        catch (FIPAException fe) {
+            fe.printStackTrace();
+        }
+        return null;
+    }
 }

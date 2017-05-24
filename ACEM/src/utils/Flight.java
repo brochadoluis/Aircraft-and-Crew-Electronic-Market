@@ -12,6 +12,7 @@ public class Flight implements Serializable{
     private Long scheduledDeparture;
     private Long tripTime;
     private Long delay;
+    private Long availability;
     private String fleet;
     private String origin;
     private String destination;
@@ -103,6 +104,14 @@ public class Flight implements Serializable{
         this.tripTime = tripTime;
     }
 
+    public Long getAvailability() {
+        return availability;
+    }
+
+    public void setAvailability(Long availability) {
+        this.availability = availability;
+    }
+
     public boolean equals(Flight aFlight){
         /*if (this.getAircraft() != null) {
             if (this.getAircraft().equals(f1.getAircraft())) {
@@ -121,13 +130,18 @@ public class Flight implements Serializable{
             }
             return true;
         }*/
-        return ((Math.abs(this.cost - aFlight.getPrice())< 0.000000000001));
+        System.out.println("this cost " +this.cost);
+        System.out.println("aflight cost " + aFlight.getPrice());
+        System.out.println("this availability " + this.availability);
+        System.out.println("aflight availability "+ aFlight.getAvailability());
+        return ((Math.abs(this.cost - aFlight.getPrice())< 0.000000000001) &&
+                Math.abs(this.availability - aFlight.getAvailability()) < 0.000000000001);
     }
 
     public void printFlight() {
-        System.out.print("Aircraft = " + this.aircraft+ ", Crew Members =  " + this.crewMembers +
+        System.out.print("Aircraft = " + this.aircraft.getTail_number()+ ", Crew Members =  " + this.crewMembers +
                 ", fleet =  " + this.fleet +", departure =  " + this.scheduledDeparture +
-                ", trip time =  " + this.tripTime + " and " + delay + " ms delay.");
+                ", trip time =  " + this.tripTime + " and " + availability + " ms delay and costing " +this.cost + ".\n");
     }
 
 }

@@ -15,15 +15,19 @@ public class UtilityComparator implements Comparator<Flight> {
 
     @Override
     public int compare(Flight aFlight, Flight anotherFlight) {
-        double aFlightTotalPrice, anotherFlighTotalPrice;
-        aFlightTotalPrice = aFlight.getPrice();
-        anotherFlighTotalPrice = anotherFlight.getPrice();
+//        double aFlightTotalPrice, anotherFlightTotalPrice;
+        long aFlightAvailability, anotherFlightAvailability;
+//        aFlightTotalPrice = aFlight.getPrice();
+//        anotherFlightTotalPrice = anotherFlight.getPrice();
+        aFlightAvailability = aFlight.getAvailability();
+        anotherFlightAvailability = anotherFlight.getAvailability();
 
-        if(aFlightTotalPrice < anotherFlighTotalPrice)
-            return 1;
-        if(aFlightTotalPrice > anotherFlighTotalPrice)
+        if (aFlightAvailability < anotherFlightAvailability)
             return -1;
 
+        if (aFlightAvailability > anotherFlightAvailability)
+            return 1;
+
         return 0;
-    }
+}
 }

@@ -233,6 +233,12 @@ public class BuyerAgent extends Agent implements Serializable {
         round++;
     }
 
+    /**
+     * Use delay percentage? example: until 20% delay is OK, 20% to 50% or 60% is LOWER, 60% to 100% is MUCH LOWER
+     * Price is always negociable
+     * @param responses
+     * @param acceptances
+     */
     private void setProposalsFeedback(Vector responses, Vector acceptances) {
         for (int i = 0; i < responses.size(); i++) {
             ACLMessage msgReceived = (ACLMessage) responses.get(i);
@@ -352,6 +358,8 @@ public class BuyerAgent extends Agent implements Serializable {
     private void findReceivers(DFServices dfs) {
         /* Saves to an ArrayList all other agents registered in DFService  */
         sellers = dfs.searchDF(this);
+        System.out.println("Sellers = " + sellers);
+        System.out.println("Sellers Size " + sellers.size());
         logger.log(Level.INFO, " Sellers: ");
         for (AID seller : sellers) {
             logger.log(Level.INFO, " {0}, ", seller.getLocalName());
