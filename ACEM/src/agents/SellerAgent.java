@@ -3,6 +3,7 @@ package agents;
 import cbr.CBR;
 import cbr.Data;
 import cbr.FileManager;
+import com.sun.org.apache.xpath.internal.SourceTree;
 import db_connection.Loader;
 import jade.core.AID;
 import jade.core.Agent;
@@ -181,6 +182,7 @@ public class SellerAgent extends Agent implements Serializable{
                             ACLMessage propose = cfp.createReply();
                             propose.setPerformative(ACLMessage.PROPOSE);
                             try {
+                                System.out.println("E aqui?");
                                 proposal.printProposal();
                                 propose.setContentObject(proposal);
                             } catch (IOException e) {
@@ -217,12 +219,14 @@ public class SellerAgent extends Agent implements Serializable{
                          * TODO: Change here
                          */
                         firstAvailableFlight = flightsList.get(0);
-                        double flightCost = firstAvailableFlight.getPrice();
-                        System.out.println("Flight Cost  = " + flightCost);
-                        minimumPrice = flightCost + (flightCost * 0.5);
-                        maximumPrice = flightCost + (flightCost * 2);
+                        double priceFactor = priceFactorCalculation(firstAvailableFlight.getAvailability());
+                        double flightCost = priceFactor * firstAvailableFlight.getPrice();
+                        //firstAvailableFlight.getPrice();
+                        System.out.println("REAL FLIGHT COST  = " + flightCost);
+                        minimumPrice = firstAvailableFlight.getPrice() + (firstAvailableFlight.getPrice() * 0.5);
+                        maximumPrice = firstAvailableFlight.getPrice() + (firstAvailableFlight.getPrice() * 2);
                         setFlightAvailability(firstAvailableFlight);
-                        proposal = new Proposal(maximumPrice, firstAvailableFlight.getAvailability(), this.getAgent().getAID());
+                        proposal = new Proposal(flightCost, firstAvailableFlight.getAvailability(), this.getAgent().getAID());
                         negotiationHistoric.put(round, proposal);
 
                         return proposal;
@@ -356,12 +360,17 @@ public class SellerAgent extends Agent implements Serializable{
         round = 0;
     }
 
+    private double priceFactorCalculation (long flightAvailability) {
+        return (((-1.5 * flightAvailability)/delay) + 3);
+
+    }
+
     private Proposal applyCommentsToProposal(Proposal rejectedProposal) {
         /**
          * TODO: change here
          */
         Flight currentFlightUnderNegotiation = flightsList.get(flightUnderNegotiationIndex);
-        System.out.println("Fligh Under Negotiation = " + flightUnderNegotiationIndex);
+        System.out.println("Flight Under Negotiation = " + flightUnderNegotiationIndex);
 //        double displacementCosts = sumResourcesPrice(queueHead);
         ArrayList<String> newCase = createCase(rejectedProposal);
         ArrayList<String> action = new ArrayList<>();
@@ -371,17 +380,19 @@ public class SellerAgent extends Agent implements Serializable{
         int similarCase;
         boolean foundEqualCase = false;
         if (similarCases.size() > 1){
-            similarCase = simulatedAnnealing(similarCases);
-            System.out.println("Similar Case Choosen is: " + similarCase);
+            similarCase = softmax(similarCases);
+            System.out.println("Similar Case Chosen is: " + similarCase);
             foundEqualCase = true;
         }
         else{
             similarCase = similarCases.get(0);
+            if (similarCase != -1 && similarCase != -2){
+                foundEqualCase = true;
+            }
         }
-//        similarCase = 3;
         switch (similarCase){
             case -1:
-            case -2:
+                //Aqui procura um recurso diferente com os mesmos comentarios, replica açao e cria novo caso, com o recurso em questao
                 //Distance != 0 => index = -1. Does the same as the following, it just adds the case to the dataset
                 System.out.println("Dunno what to do");
                 //As there are no similar cases, current case is added to the dataSet
@@ -406,79 +417,68 @@ public class SellerAgent extends Agent implements Serializable{
                 action.add(rejectedProposal.getAvailabilityComment());
                 System.out.println("Comments quando o dataSet nao tem mais do que o cabeçalho = " + action);
                 break;*/
+            case -5:
+                System.out.println("An error occurred");
+                break;
             default:
                 comments = dataSet.getNFeatures(2,similarCase);
                 action = dataSet.getAction(similarCase);
                 break;
         }
-        for (String s: comments) {
-            System.out.println("Comment is " + s);
-        }
-        System.out.println("action is: " + action);
-        if (!action.isEmpty()){
-
-        }
-        for (String s2: action) {
-            System.out.println("Action found is " + s2);
-        }
-//        System.out.println("Comments in Apply Comments to Proposal " + comments);
         actionsToTake = new ArrayList<>();
         String priceComment = comments.get(0);
         String availabilityComment = comments.get(1);
         String priceAction = "";
         String availabilityAction = "";
 
-        switch (priceComment){
+        switch (action.get(0)){
             case OK:
                 priceAction = OK;
 //                System.out.println("OK received on price. Nothing to change");
                 break;
             case LOWER:
                 priceAction = LOWER;
-//                System.out.println("LOWER received on price. Going to decrease price by 15%");
-                flightUnderNegotiationIndex++;
-//                System.out.println("LOWER: New price = " + rejectedProposal.getPrice()*0.85);
+                System.out.println("LOWER received on price. Going to decrease price by 15%");
+                System.out.println("LOWER: New price = " + rejectedProposal.getPrice()*0.85);
+                rejectedProposal.setPrice(rejectedProposal.getPrice()*0.85);
                 break;
             case MUCH_LOWER:
                 priceAction = MUCH_LOWER;
-                flightUnderNegotiationIndex+=3;
-//                System.out.println("MUCH LOWER received on price. Going to decrease price by 40%");
-//                System.out.println("LOWER: New price = " + rejectedProposal.getPrice()*0.6);
+                System.out.println("MUCH LOWER received on price. Going to decrease price by 40%");
+                System.out.println("LOWER: New price = " + rejectedProposal.getPrice()*0.6);
+                rejectedProposal.setPrice(rejectedProposal.getPrice()*0.6);
                 break;
             default:
                 break;
         }
-        switch (availabilityComment){
+        switch (action.get(1)){
             case OK:
                 availabilityAction = OK;
 //                System.out.println("OK received on availability. Nothing to change");
                 break;
             case LOWER:
                 System.out.println("LOWER received on availability. Checking if it is possible to reduce");
-                if (flightUnderNegotiationIndex > 1  && flightsList.size() > 1){
-                    System.out.println("There are flights with better availability.");
-                    flightUnderNegotiationIndex--;
-                    //update price here?
+                /*if (flightUnderNegotiationIndex > 1  && flightsList.size() > 1){
+                    System.out.println("There are flights with better availability -1.");
+                    */
                     availabilityAction = LOWER;
-                }
+                /*}
                 else {
                     availabilityAction = OK;
-                }
+                }*/
                 //Something to check this
 //                rejectedProposal.setAvailability((long) (rejectedProposal.getAvailability()*0.85));
                 System.out.println("LOWER: New availability = " + rejectedProposal.getAvailability()*0.85);
                 break;
             case MUCH_LOWER:
                 System.out.println("MUCH LOWER received on availability. Checking if it is possible to reduce");
-                if (flightUnderNegotiationIndex > 3){
+                /*if (flightUnderNegotiationIndex > 3){
                     if (flightsList.size() > 3){
 
                     }
-                }
-                System.out.println("There are flights with better availability.");
-                flightUnderNegotiationIndex-=3;
+                }*/
+                System.out.println("There are flights with better availability -3.");
                 availabilityAction = MUCH_LOWER;
-                //update price here?
                 //Something to check this
 //                rejectedProposal.setAvailability((long) (rejectedProposal.getAvailability()*0.6));
                 System.out.println("MUCH LOWER: New availability = " + rejectedProposal.getAvailability()*0.6);
@@ -488,8 +488,9 @@ public class SellerAgent extends Agent implements Serializable{
         }
         //Change index according to the availability comment received
         // Aqui entra a aprendizagem dos agentes
-        actionsToTake.add(OK);
-        actionsToTake.add(LOWER);
+        actionsToTake.add(priceAction);
+        actionsToTake.add(availabilityAction);
+        System.out.println("Actions to take is: " + actionsToTake);
         if (foundEqualCase){
             System.out.println("dataSet.checkIfActionExists(actionsToTake,similarCases) " + dataSet.checkIfActionExists(actionsToTake,similarCases));
             if (!dataSet.checkIfActionExists(actionsToTake,similarCases)){
@@ -502,26 +503,31 @@ public class SellerAgent extends Agent implements Serializable{
                 updatedCase.add(actionsToTake.get(1));
                 updatedCase.add("-1");
                 dataSet.addCase(updatedCase);
+//                foundEqualCase = false;
             }
         }
         //Add action to case, verify if action exists, if it doens't, add new case?
         System.out.println("Nunca piora a utilidade?");
-        if (hasBetterUtility(rejectedProposal, currentFlightUnderNegotiation)){
+        if (hasBetterUtility(rejectedProposal, flightsList.get(flightUnderNegotiationIndex+1))){
             System.out.println("o indice do voo a ser negociado e: " + flightUnderNegotiationIndex);
             System.out.println("atualizei o index dos voos");
-//            flightsQueue.add(queueHead);
             System.out.println("O outro recurso e melhor agora. Atualiza ai");
             proposal = new Proposal(rejectedProposal.getPrice(), rejectedProposal.getAvailability(),this.getAID());
         }
         else{
 
             System.out.println("EASTER EGGS");
+            flightUnderNegotiationIndex++;
             System.out.println("Flight is: " + flightUnderNegotiationIndex);
-            System.out.println("Rejected Proposal is: ");
-            flightUnderNegotiationIndex--;
             currentFlightUnderNegotiation = flightsList.get(flightUnderNegotiationIndex);
+            System.out.println("Prtinting rejected proposal");
             rejectedProposal.printProposal();
-            proposal = new Proposal(currentFlightUnderNegotiation.getPrice(), currentFlightUnderNegotiation.getAvailability(),this.getAID());
+            double priceFactor = priceFactorCalculation(currentFlightUnderNegotiation.getAvailability());
+            double flightCost = priceFactor * currentFlightUnderNegotiation.getPrice();
+            proposal = new Proposal(flightCost, currentFlightUnderNegotiation.getAvailability(),this.getAID());
+            /**
+             * acçoes a lower/decreased ambas (ou como piora a disponibilidade passa a increased?)
+             */
         }
 
         System.out.println("Comments.equals(Actions to take) " + comments.equals(actionsToTake));
@@ -531,6 +537,33 @@ public class SellerAgent extends Agent implements Serializable{
             logger.log(Level.SEVERE, "Could not save to Database File {0}", e);
         }
         return proposal;
+    }
+
+    private int softmax (ArrayList<Integer> similarCases){
+        ArrayList<Double> softmaxResult = new ArrayList<>();
+        ArrayList<Double> probabilities = new ArrayList<>();
+        probabilities.ensureCapacity(similarCases.size());
+        double softmaxSum = 0;
+        for (int i = 0; i < similarCases.size(); i++){
+            double outcome = Double.parseDouble(dataSet.getOutcome(similarCases.get(i)));
+            double softmsxValue = Math.exp(outcome);
+            softmaxSum += softmsxValue;
+            softmaxResult.add(softmsxValue);
+        }
+        for (int j = 0; j < softmaxResult.size(); j++){
+            double itemProbability = softmaxResult.get(j)/softmaxSum;
+            probabilities.add(itemProbability);
+        }
+        //https://stackoverflow.com/questions/9330394/how-to-pick-an-item-by-its-probability
+        double p = Math.random();
+        double cumulativeProbability = 0.0;
+        for (int i = 0; i < probabilities.size(); i++){
+            cumulativeProbability += probabilities.get(i);
+            if (p <= cumulativeProbability){
+                return similarCases.get(i);
+            }
+        }
+        return -5;
     }
 
     private int simulatedAnnealing(ArrayList<Integer> similarCases) {
@@ -1344,16 +1377,16 @@ public class SellerAgent extends Agent implements Serializable{
     }
 
     private double utilityCalculation(double priceOffered, long availabilityOffered) {
-        /*System.out.println("Price Utility is : " + ((priceOffered - minimumPrice)/(maximumPrice-minimumPrice)));
+//        System.out.println("Price Utility is : " + ((priceOffered - minimumPrice)/(maximumPrice-minimumPrice)));
         System.out.println("Minimum Price " + minimumPrice);
         System.out.println("Maximum Price " + maximumPrice);
-        System.out.println("Availability Utility is : " + ((delay - availabilityOffered)));
-        double priceUt = (priceOffered - minimumPrice)/(maximumPrice-minimumPrice);
-        //given that the minimum availability is 0
-        System.out.println("Delay is " + delay);
-        System.out.println("Availability offered is  " + availabilityOffered);
-        double  availabilityUt = (((delay - availabilityOffered))/60000);
-        System.out.println("Utility is : " + (priceUt/availabilityUt));*/
+//        System.out.println("Availability Utility is : " + ((delay - availabilityOffered)));
+//        double priceUt = (priceOffered - minimumPrice)/(maximumPrice-minimumPrice);
+//        given that the minimum availability is 0
+//        System.out.println("Delay is " + delay);
+//        System.out.println("Availability offered is  " + availabilityOffered);
+//        double  availabilityUt = (((delay - availabilityOffered))/60000);
+//        System.out.println("Utility is : " + (priceUt/availabilityUt));
         return ((priceOffered - minimumPrice)/(maximumPrice-minimumPrice));
     }
 

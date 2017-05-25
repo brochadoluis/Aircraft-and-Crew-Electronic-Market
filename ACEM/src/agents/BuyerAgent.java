@@ -68,6 +68,7 @@ public class BuyerAgent extends Agent implements Serializable {
     private int  nSCC = 0;
     private int  nCC = 0;
     private int  nCAB = 0;
+    private boolean isAircraftNeeded = false;
 //    private final String role = "Buyer";
 
     @Override
@@ -250,30 +251,70 @@ public class BuyerAgent extends Agent implements Serializable {
                 long proposedAvailability = response.getAvailability();
                 Proposal proposalWithComments = new Proposal(proposedPrice, proposedAvailability, response.getFlight(), response.getSender());
                 //These conditions need to be updated
-                if (proposedPrice / bestProposal.getPrice() >= 5) {
-                    proposalWithComments.setPriceComment(MUCH_LOWER);
-//                    System.out.println("Comment Price set to MUCH LOWER");
-                } else if (proposedPrice / bestProposal.getPrice() < 5) {
-                    proposalWithComments.setPriceComment(LOWER);
-//                    System.out.println("Comment Price set to LOWER");
-                } else if (proposedPrice / bestProposal.getPrice() <= 3) {
-                    proposalWithComments.setPriceComment(OK);
-//                    System.out.println("Comment Price set to OK");
-                }
-                if (bestProposal.getAvailability() != 0) {
-                    if (proposedAvailability / bestProposal.getAvailability() >= 5) {
-                        proposalWithComments.setAvailabilityComment(MUCH_LOWER);
-//                        System.out.println("Comment Availability set to MUCH LOWER");
-                    } else if (proposedAvailability / bestProposal.getAvailability() < 5) {
-                        proposalWithComments.setAvailabilityComment(LOWER);
-//                        System.out.println("Comment Availability set to LOWER");
-                    } else if (proposedAvailability / bestProposal.getAvailability() <= 1) {
-//                        System.out.println("proposedAvailability " + proposedAvailability);
-                        proposalWithComments.setAvailabilityComment(OK);
-//                        System.out.println("Comment Availability set to OK");
+//                if (bestProposal.getAvailability() != 0) {
+                double priceInterval = proposedPrice/maximumDisruptionCost;
+                double availabilityInterval = proposedAvailability / (double) delayInMilli;
+                System.out.println("Percentage interval " + availabilityInterval);
+                System.out.println("Price interval " + priceInterval);
+                if (isBetween(0.60,1, availabilityInterval)) {
+                    proposalWithComments.setAvailabilityComment(MUCH_LOWER);
+                    System.out.println("Comment Availability set to MUCH LOWER");
+                    if (isBetween(0,0.15, priceInterval)){
+                        proposalWithComments.setPriceComment(OK);
+                        System.out.println("Comment Price set to OK 1");
                     }
-                } else
+                    else if (isBetween(0.15,0.45, priceInterval)){
+                        proposalWithComments.setPriceComment(LOWER);
+                        System.out.println("Comment Price set to LOWER 1");
+                    }
+                    else if (isBetween(0.45,1.1, priceInterval)){
+                        proposalWithComments.setPriceComment(MUCH_LOWER);
+                        System.out.println("Comment Price set to MUCH LOWER 1");
+                    }
+                    else
+                        proposalWithComments.setPriceComment(LOWER);
+                } else if (isBetween(0.20,0.60, availabilityInterval)) {
+                    proposalWithComments.setAvailabilityComment(LOWER);
+                    System.out.println("Comment Availability set to LOWER");
+                    if (isBetween(0,0.45, priceInterval)){
+                        proposalWithComments.setPriceComment(OK);
+                        System.out.println("Comment Price set to OK 2");
+                    }
+                    else if (isBetween(0.45,0.80, priceInterval)){
+                        proposalWithComments.setPriceComment(LOWER);
+                        System.out.println("Comment Price set to LOWER 2");
+                    }
+                    else if (isBetween(0.80,1.1, priceInterval)){
+                        proposalWithComments.setPriceComment(MUCH_LOWER);
+                    }
+                } else if (isBetween(0,0.20, availabilityInterval)) {
+                    System.out.println("proposedAvailability " + proposedAvailability);
                     proposalWithComments.setAvailabilityComment(OK);
+                    System.out.println("Comment Availability set to OK");
+                    if (isBetween(0,0.80, priceInterval)){
+                        proposalWithComments.setPriceComment(OK);
+                        System.out.println("Comment Price set to OK 3");
+                    }
+                    else if (isBetween(0.80,1.1, priceInterval)){
+                        proposalWithComments.setPriceComment(LOWER);
+                        System.out.println("Comment Price set to LOWER 3");
+                    }
+                }
+
+                //Considers only price or availability too? If depends on availability also, the better the availability comment, the more expensive it can be
+//                if (proposalWithComments.getAvailabilityComment().equalsIgnoreCase(OK) && isBetween(0,maximumDisruptionCost*0.3, priceInterval)){
+                /*if (isBetween(maximumDisruptionCost*0.6,maximumDisruptionCost, priceInterval)){
+                    proposalWithComments.setPriceComment(MUCH_LOWER);
+                    System.out.println("Comment Price set to MUCH LOWER");
+                } else if (isBetween(maximumDisruptionCost*0.15,maximumDisruptionCost*0.6, priceInterval)) {
+                    proposalWithComments.setPriceComment(LOWER);
+                    System.out.println("Comment Price set to LOWER");
+                } else if (isBetween(0,maximumDisruptionCost*0.15, priceInterval)) {
+                    proposalWithComments.setPriceComment(OK);
+                    System.out.println("Comment Price set to OK");
+                }*/
+                /*} else
+                    proposalWithComments.setAvailabilityComment(OK);*/
                 msgToSend.setContentObject(proposalWithComments);
             } catch (UnreadableException e) {
                 logger.log(Level.SEVERE, "Could not get message's content: {0} ", e);
@@ -281,6 +322,12 @@ public class BuyerAgent extends Agent implements Serializable {
                 logger.log(Level.SEVERE, "Could not set message's content: {0} ", e);
             }
         }
+    }
+
+    private boolean isBetween(double lowerBound, double upperBound, double value){
+        if (value >= lowerBound && value < upperBound)
+            return  true;
+        return false;
     }
 
     private Proposal retrieveProposalContent(ACLMessage msg) {
@@ -325,27 +372,23 @@ public class BuyerAgent extends Agent implements Serializable {
         double priceOffered = proposal.getPrice();
         long availabilityOffered = proposal.getAvailability();
         double utility = utilityCalculation(priceOffered, availabilityOffered);
-
+        System.out.println("Current prtoposal utility " + utility);
         if (bestProposal == null) {
             bestProposal = proposal;
         } else {
             double bestProposalUtility;
             bestProposalUtility = utilityCalculation(bestProposal.getPrice(), bestProposal.getAvailability());
+            System.out.println("best proposal utility " + bestProposalUtility);
             if (utility > bestProposalUtility) {
                 bestProposal = proposal;
             }
-            //equals?
+            else if (utility == bestProposalUtility){
+                if (priceOffered < bestProposal.getPrice()){
+                    bestProposal = proposal;
+                }
+            }
         }
-        /**
-         * Queue == null
-         * -> push
-         * else
-         * compare utilities
-         * >queue?
-         * push
-         * else,
-         * discard
-         */
+
     }
 
     private double utilityCalculation(double priceOffered, long availabilityOffered) {
@@ -400,6 +443,11 @@ public class BuyerAgent extends Agent implements Serializable {
         delayInMilli = delayInMinutes * 60 * 1000;
         System.out.println("delayInMilli " + delayInMilli);
         System.out.println("");
+        if (isAircraftNeeded){
+            maximumDisruptionCost = aircraftDisruptionCost;
+        }
+        else
+            maximumDisruptionCost = crewDisruptionCost;
     }
 
     private void getResourceType(String resourceAffected) {
@@ -449,6 +497,7 @@ public class BuyerAgent extends Agent implements Serializable {
                     "estimated_trip_time, total_pax, crew_res_type, cost_disr_aircraft, cost_disr_crew\n" +
                     "FROM test.buyer\n" +
                     "WHERE \uFEFFresource_affected = '" + resourceAffected + "';";
+            isAircraftNeeded = true;
         }
         else if ("all crew".equals(resourceType)) {
             // All crew is needed
@@ -497,7 +546,7 @@ public class BuyerAgent extends Agent implements Serializable {
             Aircraft aircraftNeeded = new Aircraft();
             setAircraftVariables(aircraftNeeded);
             disruptedFlight.setAircraft(aircraftNeeded);
-            }
+        }
         //change to accept one of each
         if (CPT.equalsIgnoreCase(resourceType) || OPT.equalsIgnoreCase(resourceType)
                 || SCC.equalsIgnoreCase(resourceType) || CC.equalsIgnoreCase(resourceType)

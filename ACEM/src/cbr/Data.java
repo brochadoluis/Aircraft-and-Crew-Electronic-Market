@@ -41,6 +41,7 @@ public class Data {
         header.add("Price Comment");
         header.add("Availability Comment");
         header.add("Number of Sellers");
+        header.add("Resource Under Negotiation");
         header.add("Price Action");
         header.add("Availability Action");
         header.add("Evaluation");
@@ -128,15 +129,6 @@ public class Data {
             else
                 continue;
         }
-        return index;
-    }
-
-    public int getCaseToApply(ArrayList<Integer> indexes){
-        int index = -1;
-        double temperature = 100;
-        double coolingRate = 0.3;
-
-
         return index;
     }
 

@@ -132,14 +132,16 @@ public class CBR {
         for(int i = 0; i < features.size(); i++){
             switch (features.get(i)){
                 case "Price Comment":
-                    featuresWeights.put(features.get(i),2);
+                    featuresWeights.put(features.get(i),5);
                     break;
                 case "Availability Comment":
-                    featuresWeights.put(features.get(i),1);
+                    featuresWeights.put(features.get(i),5);
                     break;
                 case "Number of Sellers":
-                    featuresWeights.put(features.get(i),4);
+                    featuresWeights.put(features.get(i),2);
                     break;
+                case "Resource Under Negotiation":
+                    featuresWeights.put(features.get(i),3);
             }
         }
 //        log.write("features weights " + featuresWeights);
