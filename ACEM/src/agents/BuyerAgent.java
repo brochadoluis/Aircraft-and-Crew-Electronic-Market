@@ -176,6 +176,7 @@ public class BuyerAgent extends Agent implements Serializable {
                         accept.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
                         setRefuses(acceptances);
                         logger.log(Level.INFO, "Round n (After Accept): {0} ", round);
+                        //voltar a ler a lista de sellers, identificar a melhor proposta e enviar accept para esse e reject para todos os outros
                     }
                     //accept == null => send another cfp
                     else {

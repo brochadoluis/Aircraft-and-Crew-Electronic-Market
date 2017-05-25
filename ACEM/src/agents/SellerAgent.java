@@ -81,6 +81,7 @@ public class SellerAgent extends Agent implements Serializable{
     private boolean recencyOutcome = false;
     private Loader db;
     private ArrayList<String> actionsToTake = new ArrayList<>();
+    private String resourceUnderNegotiation = "";
     private String tail_number;
     private String fleet;
     private String rank;
@@ -103,6 +104,7 @@ public class SellerAgent extends Agent implements Serializable{
     private int cmAvailability;
     private int aircraftAvailability;
     private int flightUnderNegotiationIndex = 0;
+
 
 
 
@@ -282,6 +284,7 @@ public class SellerAgent extends Agent implements Serializable{
         newCase.add(rejectedProposal.getAvailabilityComment());
         newCase.add(String.valueOf(participants.size()));
         System.out.println("participants = " + participants);
+        newCase.add(resourceUnderNegotiation);
 
         //Seller is available to lower the price
         if (rejectedProposal.getPrice() > minimumPrice){
@@ -402,21 +405,25 @@ public class SellerAgent extends Agent implements Serializable{
                 dataSet.addCase(newCase);
                 comments.add(rejectedProposal.getPriceComment());
                 comments.add(rejectedProposal.getAvailabilityComment());
-                /*action.add(rejectedProposal.getPriceComment());
-                action.add(rejectedProposal.getAvailabilityComment());*/
+                System.out.println("rejectedProposal.getPriceComment() " +rejectedProposal.getPriceComment() );
+                System.out.println("rejectedProposal.getAvailabilityComment() " + rejectedProposal.getAvailabilityComment());
+                action.add(rejectedProposal.getPriceComment());
+                action.add(rejectedProposal.getAvailabilityComment());
                 System.out.println("Comments quando a distancia nao e 0 = " + action);
                 break;
-            /*case -2:
+            case -2:
                 //As there are no cases, current case is added to the dataSet
                 System.out.println("Estou a a adiconar um caso porque não existe caso  no dataSet");
                 System.out.println("Adicionar novo caso, quando nao ha casos no dataSet. Caso: " + newCase);
                 dataSet.addCase(newCase);
                 comments.add(rejectedProposal.getPriceComment());
                 comments.add(rejectedProposal.getAvailabilityComment());
+                System.out.println("rejectedProposal.getPriceComment() " +rejectedProposal.getPriceComment() );
+                System.out.println("rejectedProposal.getAvailabilityComment() " + rejectedProposal.getAvailabilityComment());
                 action.add(rejectedProposal.getPriceComment());
                 action.add(rejectedProposal.getAvailabilityComment());
                 System.out.println("Comments quando o dataSet nao tem mais do que o cabeçalho = " + action);
-                break;*/
+                break;
             case -5:
                 System.out.println("An error occurred");
                 break;
@@ -431,6 +438,7 @@ public class SellerAgent extends Agent implements Serializable{
         String priceAction = "";
         String availabilityAction = "";
 
+        System.out.println("Array action is: " + action );
         switch (action.get(0)){
             case OK:
                 priceAction = OK;
@@ -438,15 +446,23 @@ public class SellerAgent extends Agent implements Serializable{
                 break;
             case LOWER:
                 priceAction = LOWER;
-                System.out.println("LOWER received on price. Going to decrease price by 15%");
-                System.out.println("LOWER: New price = " + rejectedProposal.getPrice()*0.85);
-                rejectedProposal.setPrice(rejectedProposal.getPrice()*0.85);
+                System.out.println("LOWER received on price. Going to decrease price by 10%");
+                System.out.println("LOWER: New price = " + rejectedProposal.getPrice()*0.9);
+                if (rejectedProposal.getPrice()*0.9 < minimumPrice){
+                    rejectedProposal.setPrice(minimumPrice);
+                }
+                else
+                    rejectedProposal.setPrice(rejectedProposal.getPrice()*0.9);
                 break;
             case MUCH_LOWER:
                 priceAction = MUCH_LOWER;
-                System.out.println("MUCH LOWER received on price. Going to decrease price by 40%");
-                System.out.println("LOWER: New price = " + rejectedProposal.getPrice()*0.6);
-                rejectedProposal.setPrice(rejectedProposal.getPrice()*0.6);
+                System.out.println("MUCH LOWER received on price. Going to decrease price by 25%");
+                System.out.println("LOWER: New price = " + rejectedProposal.getPrice()*0.75);
+                if (rejectedProposal.getPrice()*0.75 < minimumPrice){
+                    rejectedProposal.setPrice(minimumPrice);
+                }
+                else
+                    rejectedProposal.setPrice(rejectedProposal.getPrice()*0.75);
                 break;
             default:
                 break;
@@ -461,17 +477,17 @@ public class SellerAgent extends Agent implements Serializable{
                 /*if (flightUnderNegotiationIndex > 1  && flightsList.size() > 1){
                     System.out.println("There are flights with better availability -1.");
                     */
-                    availabilityAction = LOWER;
+                availabilityAction = LOWER;
                 /*}
                 else {
                     availabilityAction = OK;
                 }*/
                 //Something to check this
 //                rejectedProposal.setAvailability((long) (rejectedProposal.getAvailability()*0.85));
-                System.out.println("LOWER: New availability = " + rejectedProposal.getAvailability()*0.85);
+//                System.out.println("LOWER: New availability = " + rejectedProposal.getAvailability()*0.85);
                 break;
             case MUCH_LOWER:
-                System.out.println("MUCH LOWER received on availability. Checking if it is possible to reduce");
+//                System.out.println("MUCH LOWER received on availability. Checking if it is possible to reduce");
                 /*if (flightUnderNegotiationIndex > 3){
                     if (flightsList.size() > 3){
 
@@ -481,7 +497,7 @@ public class SellerAgent extends Agent implements Serializable{
                 availabilityAction = MUCH_LOWER;
                 //Something to check this
 //                rejectedProposal.setAvailability((long) (rejectedProposal.getAvailability()*0.6));
-                System.out.println("MUCH LOWER: New availability = " + rejectedProposal.getAvailability()*0.6);
+//                System.out.println("MUCH LOWER: New availability = " + rejectedProposal.getAvailability()*0.6);
                 break;
             default:
                 break;
@@ -510,13 +526,13 @@ public class SellerAgent extends Agent implements Serializable{
         System.out.println("Nunca piora a utilidade?");
         if (hasBetterUtility(rejectedProposal, flightsList.get(flightUnderNegotiationIndex+1))){
             System.out.println("o indice do voo a ser negociado e: " + flightUnderNegotiationIndex);
-            System.out.println("atualizei o index dos voos");
-            System.out.println("O outro recurso e melhor agora. Atualiza ai");
+            System.out.println("a utilidade deste recurso e maior do que a utilidade do seguinte.");
             proposal = new Proposal(rejectedProposal.getPrice(), rejectedProposal.getAvailability(),this.getAID());
         }
         else{
 
             System.out.println("EASTER EGGS");
+            System.out.println("Next resource has better utility than the updated proposal");
             flightUnderNegotiationIndex++;
             System.out.println("Flight is: " + flightUnderNegotiationIndex);
             currentFlightUnderNegotiation = flightsList.get(flightUnderNegotiationIndex);
@@ -711,9 +727,11 @@ public class SellerAgent extends Agent implements Serializable{
         return new ArrayList<>();
     }
 
-    private boolean hasBetterUtility(Proposal rejectedProposal, Flight peek) {
-        System.out.println("utilityCalculation(rejectedProposal.getPrice()) > (utilityCalculation(sumResourcesPrice(peek))) " + (utilityCalculation(rejectedProposal.getPrice(),rejectedProposal.getAvailability()) > (utilityCalculation(peek.getPrice(),peek.getAvailability()))));
-        return (utilityCalculation(rejectedProposal.getPrice(),rejectedProposal.getAvailability()) > (utilityCalculation(peek.getPrice(),peek.getAvailability())));
+    private boolean hasBetterUtility(Proposal rejectedProposal, Flight nextFlight) {
+        System.out.println("utilityCalculation(rejectedProposal.getPrice()) > (utilityCalculation(sumResourcesPrice(peek))) " + (utilityCalculation(rejectedProposal.getPrice()) > (nextFlightUtilityCalculation(priceFactorCalculation(nextFlight.getAvailability())*nextFlight.getPrice(),nextFlight))));
+        System.out.println("utilityCalculation(rejectedProposal.getPrice(),rejectedProposal.getAvailability()) " + utilityCalculation(rejectedProposal.getPrice()));
+        System.out.println("utilityCalculation(peek.getPrice(),peek.getAvailability()) " + nextFlightUtilityCalculation(priceFactorCalculation(nextFlight.getAvailability())*nextFlight.getPrice(),nextFlight));
+        return (utilityCalculation(rejectedProposal.getPrice()) > (nextFlightUtilityCalculation(priceFactorCalculation(nextFlight.getAvailability())*nextFlight.getPrice(),nextFlight)));
     }
 
     private void updateRound() {
@@ -846,11 +864,17 @@ public class SellerAgent extends Agent implements Serializable{
                     "WHERE \uFEFForigin LIKE '"+ origin +"'\n" +
                     "AND destination LIKE '"+ destination +"';";
             isAircraftNeeded = true;
+            resourceUnderNegotiation = "Aircraft";
         }
         else if(!askedFlight.getCrewMembers().isEmpty()){
+            if (askedFlight.getCrewMembers().size() == 1){
+                //replace with the crew member needed rank
+                resourceUnderNegotiation = "Crew Member Rank";
+            }
             /**
              * TODO: Prepare query for crew members
              */
+            resourceUnderNegotiation = "Crew";
         }
 
         ArrayList<Aircraft> availableAircraft = new ArrayList<>();
@@ -1076,29 +1100,6 @@ public class SellerAgent extends Agent implements Serializable{
         return oneCrew;
     }
 
-    //Refactor this method
-    private ArrayList<ArrayList<Integer>> combineDifferentIndexes(ArrayList<ArrayList<Integer>> differentCrewMembers, ArrayList<ArrayList<CrewMember>> allCrewList) {
-        ArrayList<ArrayList<Integer>> allCombinations = new ArrayList<>();
-        for (int cptIndex = 0; cptIndex < differentCrewMembers.get(0).size(); cptIndex++){
-            for (int optIndex = 0; optIndex < differentCrewMembers.get(1).size(); optIndex++){
-                for (int scbIndex = 0; scbIndex < differentCrewMembers.get(2).size(); scbIndex++){
-                    for (int ccbIndex = 0; ccbIndex < differentCrewMembers.get(3).size(); ccbIndex++){
-                        for (int cabIndex = 0; cabIndex < differentCrewMembers.get(4).size(); cabIndex++){
-                            ArrayList<Integer> combination = new ArrayList<>();
-                            combination.add(differentCrewMembers.get(0).get(cptIndex));
-                            combination.add(differentCrewMembers.get(1).get(optIndex));
-                            combination.add(differentCrewMembers.get(2).get(scbIndex));
-                            combination.add(differentCrewMembers.get(3).get(ccbIndex));
-                            combination.add(differentCrewMembers.get(4).get(cabIndex));
-                            allCombinations.add(combination);
-                        }
-                    }
-                }
-            }
-        }
-        return allCombinations;
-    }
-
     public void permute(ArrayList<ArrayList<Integer>> differentCrewMembers, int index, ArrayList<Integer> output, ArrayList<ArrayList<Integer>> o2){
         if(index == differentCrewMembers.size()){
             o2.add((ArrayList<Integer>) output.clone());
@@ -1183,7 +1184,6 @@ public class SellerAgent extends Agent implements Serializable{
             System.out.println("Not a recognized rank");
     }
 
-
     private ArrayList<Aircraft> extractAircraftQueryData(ResultSet rs, ResultSetMetaData rsmd, int columnsNumber, ArrayList<Aircraft> availableAircraft) throws SQLException {
 //        ArrayList<Aircraft> availableAircraft = new ArrayList<>();
         Aircraft matchingAircraft = null;
@@ -1213,55 +1213,6 @@ public class SellerAgent extends Agent implements Serializable{
         System.out.println("This aircraft needs " + matchingAircraft.getCabNumber() + " cabs");*/
 
         return availableAircraft;
-    }
-
-    private void addCrewMembersToFlight(Flight flight) {
-        addCrewMemberToFlight(flight, CPT);
-        addCrewMemberToFlight(flight, OPT);
-        addCrewMemberToFlight(flight, SCB);
-        addCrewMemberToFlight(flight, CCB);
-        addCrewMemberToFlight(flight, CAB);
-
-        //Adicionar tambem o preço e(depois de os somar) e guardar numa variavel do buyer e nao do voo!!!!!
-    }
-
-    private void addCrewMemberToFlight(Flight flight, String resourceType) {
-        if (CPT.equalsIgnoreCase(resourceType)){
-            CrewMember cm = setCrewMemberVariables(flight, nCPT, CPT);
-            if (cm != null) {
-                System.out.println("Cm " + cm.getCategory());
-                flight.addCrewMember(cm);
-            }
-        }
-        if (OPT.equalsIgnoreCase(resourceType)){
-            CrewMember cm = setCrewMemberVariables(flight, nOPT, OPT);
-            if (cm != null)
-                flight.addCrewMember(cm);
-        }
-        if (SCB.equalsIgnoreCase(resourceType)) {
-            CrewMember cm = setCrewMemberVariables(flight, nSCB, SCB);
-            if (cm != null)
-                flight.addCrewMember(cm);
-        }
-        if (CCB.equalsIgnoreCase(resourceType)) {
-            CrewMember cm = setCrewMemberVariables(flight, nCCB, CCB);
-            if (cm != null)
-                flight.addCrewMember(cm);
-        }
-        if (CAB.equalsIgnoreCase(resourceType)){
-            CrewMember cm = setCrewMemberVariables(flight, nCAB, CAB);
-            if (cm != null)
-                flight.addCrewMember(cm);
-        }
-    }
-    private CrewMember setCrewMemberVariables(Flight flight, int crewMemberNumber, String crewMemberCategory) {
-        if (crewMemberNumber != 0) {
-            CrewMember cm = new CrewMember();
-            cm.setNumber(crewMemberNumber);
-            cm.setCategory(crewMemberCategory);
-            return cm;
-        }
-        return null;
     }
 
     private void queryToVariables(ResultSet rs, ResultSetMetaData rsmd, int index, boolean isAircraftNeeded) throws SQLException {
@@ -1376,18 +1327,20 @@ public class SellerAgent extends Agent implements Serializable{
          */
     }
 
-    private double utilityCalculation(double priceOffered, long availabilityOffered) {
-//        System.out.println("Price Utility is : " + ((priceOffered - minimumPrice)/(maximumPrice-minimumPrice)));
+    private double utilityCalculation(double priceOffered) {
+        System.out.println("Price Offered " + priceOffered);
         System.out.println("Minimum Price " + minimumPrice);
         System.out.println("Maximum Price " + maximumPrice);
-//        System.out.println("Availability Utility is : " + ((delay - availabilityOffered)));
-//        double priceUt = (priceOffered - minimumPrice)/(maximumPrice-minimumPrice);
-//        given that the minimum availability is 0
-//        System.out.println("Delay is " + delay);
-//        System.out.println("Availability offered is  " + availabilityOffered);
-//        double  availabilityUt = (((delay - availabilityOffered))/60000);
-//        System.out.println("Utility is : " + (priceUt/availabilityUt));
         return ((priceOffered - minimumPrice)/(maximumPrice-minimumPrice));
+    }
+
+    private double nextFlightUtilityCalculation(double priceOffered, Flight nextFlight) {
+        double nextFlightMinPrice = nextFlight.getPrice() + nextFlight.getPrice()* 0.5;
+        double nextFlightMaxPrice = nextFlight.getPrice()+ nextFlight.getPrice()* 2;
+        System.out.println("Price Offered " + priceOffered);
+        System.out.println("Minimum Price " + nextFlightMinPrice);
+        System.out.println("Maximum Price " + nextFlightMaxPrice);
+        return ((priceOffered - nextFlightMinPrice)/(nextFlightMaxPrice-nextFlightMinPrice));
     }
 
     /**

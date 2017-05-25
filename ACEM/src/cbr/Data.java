@@ -185,8 +185,11 @@ public class Data {
     }
 
     public ArrayList<String> getNFeatures(int numberOfFeaturesToReturn, int line) {
+        System.out.println("numberOfFeaturesToReturn " + numberOfFeaturesToReturn);
+        System.out.println("line " + line);
         ArrayList<String> featuresRequired = new ArrayList<>();
         for(int i = 0; i < numberOfFeaturesToReturn; i++){
+            System.out.println("numberOfFeaturesToReturn i is " + i);
             featuresRequired.add(data.get(line).get(i));
         }
         return featuresRequired;

@@ -95,21 +95,26 @@ public class FileManager {
             // Then print cases, actions and outcomes
             for (int i = 1; i < data.getSize(); i++) {
                 for(int j = 0; j < data.getLineSize(); j++){
-                    out.print("\t");
+//                    out.print("\t");
                     if(data.getString(i,j) != null) {
                         out.print(data.getString(i, j));
                         if (j < data.getLineSize() - 1) {
                             switch (j) {
                                 case 0:
-                                    out.print("\t\t\t");
-                                    break;
-                                case 1:
-                                case 3:
-                                case 4:
                                     out.print("\t\t\t\t");
                                     break;
+                                case 1:
+                                case 5:
+                                    out.print("\t\t\t\t\t");
+                                    break;
                                 case 2:
-                                    out.print("\t\t\t   ");
+                                    out.print("\t\t\t");
+                                    break;
+                                case 3:
+                                    out.print("\t\t\t\t\t");
+                                    break;
+                                case 4:
+                                    out.print("\t\t\t\t");
                                     break;
                                 default:
                                     break;
