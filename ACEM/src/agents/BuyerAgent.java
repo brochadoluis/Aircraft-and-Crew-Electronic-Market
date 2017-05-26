@@ -55,6 +55,7 @@ public class BuyerAgent extends Agent implements Serializable {
     private double crewDisruptionCost = 0;
     private String company = "";
     private ArrayList<AID> sellers = new ArrayList<>();
+    private ArrayList<AID> finalRoundReceivers = new ArrayList<>();
     private int negotiationParticipants;
     private Integer round = 0;
     private long scheduledDepartureMilli;
@@ -83,6 +84,7 @@ public class BuyerAgent extends Agent implements Serializable {
             logger.log(Level.INFO, "Worst case scenario {0} € as cost.", maximumDisruptionCost);
             DFServices dfs = registerInDFS();
             findReceivers(dfs);
+            finalRoundReceivers = (ArrayList<AID>) sellers.clone();
             /**
              * Connection to DB
              * Found disruption
@@ -109,17 +111,19 @@ public class BuyerAgent extends Agent implements Serializable {
                 protected void handleRefuse(ACLMessage refuse) {
                     logger.log(Level.INFO, "Agent{0}, refused ", refuse.getSender().getName());
                     logger.log(Level.INFO, "Round n (Handle Refuse): {0}", round);
-                    for (int i = 0; i < sellers.size(); i++) {
+                    negotiationParticipants--;
+                    /*for (int i = 0; i < sellers.size(); i++) {
                         if (sellers.get(i).getName().equals(refuse.getSender().getName())) {
                             sellers.remove(i);
                             negotiationParticipants--;
                         }
                     }
                     if (negotiationParticipants == 0) {
+                        Fazer set as repostas
                         logger.log(Level.INFO, "TakeDown ");
                         takeDown(this.getAgent());
                         doDelete();
-                    }
+                    }*/
 
                     /**
                      * Removes seller from receivers, and removes his response from responses vector
@@ -150,24 +154,47 @@ public class BuyerAgent extends Agent implements Serializable {
                     Enumeration e = responses.elements();
                     while (e.hasMoreElements()) {
                         ACLMessage msg = (ACLMessage) e.nextElement();
+                        if (negotiationParticipants == 0){
+                            System.out.println("Nao ha mais participantes");
+                            System.out.println("Best is: " + proposal.getSender());
+                            bestProposal.printProposal();
+                            bestProposer = bestProposal.getSender();
+                            System.out.println("msg ali = " + msg);
+                            ACLMessage reply = msg.createReply();
+                            reply.setPerformative(ACLMessage.CFP);
+                            acceptances.addElement(reply);
+                            accept = reply;
+//                        logger.log(Level.INFO, "Accepting proposal {0}, from responder {1}", new Object[]{bestProposal, bestProposer.getName()});
+                            accept.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
+                            setRefuses(acceptances);
+                            try {
+                                accept.setContentObject(bestProposal);
+                            } catch (IOException e1) {
+                                e1.printStackTrace();
+                            }
+                            logger.log(Level.INFO, "Round n (After Accept): {0} ", round);
+//                            newIteration(acceptances);
+                        }
                         if (msg.getPerformative() == ACLMessage.PROPOSE) {
+
                             ACLMessage reply = msg.createReply();
                             reply.setPerformative(ACLMessage.CFP);
                             acceptances.addElement(reply);
                             proposal = retrieveProposalContent(msg);
                             System.out.println("Proposal =");
                             evaluateProposal(proposal);
-                            if (round == 7) {
+                            /*if (round == 7) {
                                 bestProposal = proposal;
                                 bestProposer = msg.getSender();
                                 accept = reply;
                                 logger.log(Level.INFO, "Best proposal is: {0}", bestProposal.getAvailability() );
                                 bestProposal.printProposal();
-                            }
+                            }*/
+
                         }
-                        if (msg.getPerformative() == ACLMessage.REFUSE) {
-                            responses.remove(msg);
-                        }
+                            /*if (msg.getPerformative() == ACLMessage.REFUSE) {
+                                responses.remove(msg);
+                            }*/
                     }
                     // Accept the proposal of the best proposer
                     if (accept != null) {
@@ -208,12 +235,14 @@ public class BuyerAgent extends Agent implements Serializable {
             if(reject.getPerformative() != ACLMessage.ACCEPT_PROPOSAL)
                 reject.setPerformative(ACLMessage.REJECT_PROPOSAL);
         }
+
+        System.out.println("Acceptances size = " + acceptances.size());
     }
 
     private ACLMessage sendFirstCFP() {
         logger.log(Level.INFO, "Round n (Before first CFP): {0}", round);
         disruptedFlight.printFlight();
-        Proposal cfp = new Proposal(0F, 1L, disruptedFlight, this.getAID());
+        Proposal cfp = new Proposal(0F, 0L, disruptedFlight, this.getAID());
         ACLMessage msg = new ACLMessage(ACLMessage.CFP);
         for (AID seller : sellers) {
             msg.addReceiver(seller);
@@ -248,6 +277,7 @@ public class BuyerAgent extends Agent implements Serializable {
             try {
                 response = (Proposal) msgReceived.getContentObject();
                 ACLMessage msgToSend = (ACLMessage) acceptances.get(i);
+
                 double proposedPrice = response.getPrice();
                 long proposedAvailability = response.getAvailability();
                 Proposal proposalWithComments = new Proposal(proposedPrice, proposedAvailability, response.getFlight(), response.getSender());
@@ -375,12 +405,16 @@ public class BuyerAgent extends Agent implements Serializable {
         double utility = utilityCalculation(priceOffered, availabilityOffered);
         System.out.println("Current prtoposal utility " + utility);
         if (bestProposal == null) {
+            System.out.println("Adicionei proposta");
+            proposal.printProposal();
             bestProposal = proposal;
         } else {
             double bestProposalUtility;
             bestProposalUtility = utilityCalculation(bestProposal.getPrice(), bestProposal.getAvailability());
             System.out.println("best proposal utility " + bestProposalUtility);
+            System.out.println("Current proposal utility " + utility);
             if (utility > bestProposalUtility) {
+                System.out.println("Best Proposal Updated");
                 bestProposal = proposal;
             }
             else if (utility == bestProposalUtility){
@@ -394,8 +428,8 @@ public class BuyerAgent extends Agent implements Serializable {
 
     private double utilityCalculation(double priceOffered, long availabilityOffered) {
         long proposedDeparture = scheduledDepartureMilli + availabilityOffered;
-
-        return ((((double) scheduledDepartureMilli / proposedDeparture) + (1.0 - (priceOffered / maximumDisruptionCost))) / 2);
+        System.out.println("((double) scheduledDepartureMilli / proposedDeparture) " + ((double) scheduledDepartureMilli / proposedDeparture));
+        return (1-((((double) scheduledDepartureMilli / proposedDeparture) + (1.0 - (priceOffered / maximumDisruptionCost))) / 2));
 
     }
 

@@ -79,6 +79,7 @@ public class SellerAgent extends Agent implements Serializable{
     private FileManager fm = new FileManager();
     private CBR cbr;
     private boolean recencyOutcome = false;
+    private boolean refused = false;
     private Loader db;
     private ArrayList<String> actionsToTake = new ArrayList<>();
     private String resourceUnderNegotiation = "";
@@ -154,6 +155,22 @@ public class SellerAgent extends Agent implements Serializable{
                         logger.log(Level.INFO, "Agent {0}: CFP received from {1}. Action is {2} ", new Object[]{getLocalName(), cfp.getSender().getLocalName(), cfp.getContent()});
                         logger.log(Level.INFO, "Round n(upon receiving CFP: {0})", round);
                         Proposal rejectedProposal = null;
+                        /*try {
+                            System.out.println("Vou meter isto a dormir");
+                            Thread.sleep(3000);
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }*/
+                        /*if (true){
+                            ACLMessage refuse = cfp.createReply();
+                            refuse.setPerformative(ACLMessage.REFUSE);
+                            try {
+                                refuse.setContentObject("Refuse already sent. Just waiting for the end to come");
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                            return refuse;
+                        }*/
                         /**
                          * First Round means that sellers need to fetch for available resources in the DataBase
                          * The first round is identif ied by having both, Resource's Queue and Negotiation Historic HashMap, empty
@@ -179,12 +196,22 @@ public class SellerAgent extends Agent implements Serializable{
                             negotiationHistoric.put(round - 1, rejectedProposal);
                             proposal = applyCommentsToProposal(rejectedProposal);
                             logger.log(Level.INFO, "proposal toString = {0}", rejectedProposal.toString());
+                            if (refused){
+                                ACLMessage refuse2 = cfp.createReply();
+                                refuse2.setPerformative(ACLMessage.REFUSE);
+                                try {
+                                    System.out.println("Refuse already sent. Just waiting for the end to come");
+                                    refuse2.setContentObject("Refuse already sent. Just waiting for the end to come");
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+                                return refuse2;
+                            }
                         }
                         if (!flightsList.isEmpty()) {
                             ACLMessage propose = cfp.createReply();
                             propose.setPerformative(ACLMessage.PROPOSE);
                             try {
-                                System.out.println("E aqui?");
                                 proposal.printProposal();
                                 propose.setContentObject(proposal);
                             } catch (IOException e) {
@@ -197,9 +224,10 @@ public class SellerAgent extends Agent implements Serializable{
                             ACLMessage refuse = cfp.createReply();
                             refuse.setPerformative(ACLMessage.REFUSE);
                             try {
-                                refuse.setContentObject("Refused. Bye");
-                                resetNegotiationStructure();
-                                negotiationHistoric = new HashMap<>();
+                                System.out.println("Refused. Waiting for the end");
+                                refuse.setContentObject("Refused. Waiting for the end");
+                                refused = true;
+//                                resetNegotiationStructure();
                                 return refuse;
                             } catch (IOException e) {
                                 logger.log(Level.SEVERE, "Could not set the message's content {0}", e);
@@ -249,13 +277,17 @@ public class SellerAgent extends Agent implements Serializable{
                             logger.log(Level.INFO, "Agent {0}: Action successfully performed", getLocalName());
                             System.out.println("Resources to be leased: ");
 //                            flightsList.get(1).printFlight();
-                            for (int i = 0; i < flightsList.size(); i++){
+                            /*for (int i = 0; i < flightsList.size(); i++){
                                 flightsList.get(i).printFlight();
-                            }
+                            }*//*
                             System.out.println("TailNum is " + flightsList.get(flightUnderNegotiationIndex).getAircraft().getTail_number() + " Costing " + flightsList.get(flightUnderNegotiationIndex).getPrice() + " with "
                                     + flightsList.get(flightUnderNegotiationIndex).getAvailability() + " ms delay. Departure at: " + (scheduledDeparture +
-                                    flightsList.get(flightUnderNegotiationIndex).getAvailability()) + ". This is the flight with index: " + flightUnderNegotiationIndex);
+                                    flightsList.get(flightUnderNegotiationIndex).getAvailability()) + ". This is the flight with index: " + flightUnderNegotiationIndex);*/
                             //update outcome of this/previous negotiation round
+                            Proposal acceptedProposal = retrieveProposalContent(accept);
+                            System.out.println("Accept is ");
+                            acceptedProposal.printProposal();
+
                             ACLMessage inform = accept.createReply();
                             inform.setPerformative(ACLMessage.INFORM);
                             resetNegotiationStructure();
@@ -524,26 +556,35 @@ public class SellerAgent extends Agent implements Serializable{
         }
         //Add action to case, verify if action exists, if it doens't, add new case?
         System.out.println("Nunca piora a utilidade?");
-        if (hasBetterUtility(rejectedProposal, flightsList.get(flightUnderNegotiationIndex+1))){
-            System.out.println("o indice do voo a ser negociado e: " + flightUnderNegotiationIndex);
-            System.out.println("a utilidade deste recurso e maior do que a utilidade do seguinte.");
-            proposal = new Proposal(rejectedProposal.getPrice(), rejectedProposal.getAvailability(),this.getAID());
-        }
-        else{
+        //Veriricar se flightUnderNegotiationIndex+1 nao esta fora do array.
+        if (flightUnderNegotiationIndex < flightsList.size()-1){
+            if (hasBetterUtility(rejectedProposal, flightsList.get(flightUnderNegotiationIndex+1))){
+                System.out.println("o indice do voo a ser negociado e: " + flightUnderNegotiationIndex);
+                System.out.println("a utilidade deste recurso e maior do que a utilidade do seguinte.");
+                proposal = new Proposal(rejectedProposal.getPrice(), rejectedProposal.getAvailability(),this.getAID());
+            }
+            else{
 
-            System.out.println("EASTER EGGS");
-            System.out.println("Next resource has better utility than the updated proposal");
-            flightUnderNegotiationIndex++;
-            System.out.println("Flight is: " + flightUnderNegotiationIndex);
-            currentFlightUnderNegotiation = flightsList.get(flightUnderNegotiationIndex);
-            System.out.println("Prtinting rejected proposal");
-            rejectedProposal.printProposal();
-            double priceFactor = priceFactorCalculation(currentFlightUnderNegotiation.getAvailability());
-            double flightCost = priceFactor * currentFlightUnderNegotiation.getPrice();
-            proposal = new Proposal(flightCost, currentFlightUnderNegotiation.getAvailability(),this.getAID());
-            /**
-             * acçoes a lower/decreased ambas (ou como piora a disponibilidade passa a increased?)
-             */
+                System.out.println("EASTER EGGS");
+                System.out.println("Next resource has better utility than the updated proposal");
+                flightUnderNegotiationIndex++;
+                System.out.println("Flight is: " + flightUnderNegotiationIndex);
+                currentFlightUnderNegotiation = flightsList.get(flightUnderNegotiationIndex);
+                System.out.println("Prtinting rejected proposal");
+                rejectedProposal.printProposal();
+                double priceFactor = priceFactorCalculation(currentFlightUnderNegotiation.getAvailability());
+                double flightCost = priceFactor * currentFlightUnderNegotiation.getPrice();
+                proposal = new Proposal(flightCost, currentFlightUnderNegotiation.getAvailability(),this.getAID());
+                /**
+                 * acçoes a lower/decreased ambas (ou como piora a disponibilidade passa a increased?)
+                 */
+            }
+        }
+        else
+        {
+            logger.log(Level.INFO,"Resources not available");
+            proposal = null;
+            refused = true;
         }
 
         System.out.println("Comments.equals(Actions to take) " + comments.equals(actionsToTake));
@@ -1398,5 +1439,16 @@ public class SellerAgent extends Agent implements Serializable{
         }
 
         return disruptedFlight;
+    }
+
+    private Proposal retrieveProposalContent(ACLMessage msg) {
+        Proposal p;
+        try {
+            p = (Proposal) msg.getContentObject();
+            return p;
+        } catch (UnreadableException e) {
+            logger.log(Level.SEVERE, "Could not get message's content {0}", e);
+        }
+        return null;
     }
 }
