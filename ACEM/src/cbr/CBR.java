@@ -74,16 +74,28 @@ public class CBR {
     private double calculateEuclideanDistance(ArrayList<String> newCase, ArrayList<String> dataSetCase){
         double sum = 0.0;
         double euclideanDistance;
+        if (newCase.get(3).isEmpty()){
+            newCase.set(3,dataSetCase.get(3));
+            System.out.println("ALTEROU PARA " + newCase.get(3));
+        }
         ArrayList<Integer> newCaseInt = CommentsToInt(newCase);
         ArrayList<Integer> dataSetCaseInt = CommentsToInt(dataSetCase);
+        System.out.println("calculateEuclideanDistance NEWCASE " + newCase );
+        System.out.println("calculateEuclideanDistance DATASETCASE  " + dataSetCase);
         for(int i = 0; i < newCaseInt.size(); i++){
 //            log.write(" newCase.get(i) " + newCase.get(i));
 //            log.write(" data.get(0).get(i) " + data.getLine(0).get(i));
 //            log.write("(newCaseInt.get(i) - dataSetCaseInt.get(i) " + (newCaseInt.get(i) - dataSetCaseInt.get(i)));
+            System.out.println("newCaseInt.get(i) " + newCaseInt.get(i));
+            System.out.println("newCase.get(i) " + newCase.get(i));
+            System.out.println("dataSetCaseInt.get(i) " + dataSetCaseInt.get(i));
+            System.out.println("dataSetCase.get(i) " + dataSetCase.get(i));
             sum += Math.pow(newCaseInt.get(i) - dataSetCaseInt.get(i),2.0) * featuresWeights.get(data.getLine(0).get(i));
 
         }
         euclideanDistance = Math.sqrt(sum);
+        System.out.println("THE SUM BEFORE SQRT IS: " + sum);
+        System.out.println("calculateEuclideanDistance NEWCASE  value = " + euclideanDistance);
 //        log.write("Euclidean Distance = " + euclideanDistance);
 
         return euclideanDistance;
@@ -120,6 +132,19 @@ public class CBR {
                 case "MUCH LOWER":
                     commentValues.add(2);
                     break;
+                case "Aircraft":
+                    commentValues.add(5);
+                    break;
+                case "Crew":
+                    commentValues.add(6);
+                    break;
+                case "CPT":
+                case "OPT":
+                case "SCB":
+                case "CCB":
+                case "CAB":
+                    commentValues.add(7);
+                    break;
                 default:
                     commentValues.add(Integer.parseInt(aCase.get(i)));
                     break;
@@ -132,10 +157,10 @@ public class CBR {
         for(int i = 0; i < features.size(); i++){
             switch (features.get(i)){
                 case "Price Comment":
-                    featuresWeights.put(features.get(i),5);
+                    featuresWeights.put(features.get(i),10);
                     break;
                 case "Availability Comment":
-                    featuresWeights.put(features.get(i),5);
+                    featuresWeights.put(features.get(i),10);
                     break;
                 case "Number of Sellers":
                     featuresWeights.put(features.get(i),2);

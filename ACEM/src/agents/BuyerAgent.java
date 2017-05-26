@@ -22,7 +22,9 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.logging.FileHandler;
 import java.util.logging.Level;
+import java.util.logging.SimpleFormatter;
 
 
 /**
@@ -183,13 +185,6 @@ public class BuyerAgent extends Agent implements Serializable {
                             proposal = retrieveProposalContent(msg);
                             System.out.println("Proposal =");
                             evaluateProposal(proposal);
-                            /*if (round == 7) {
-                                bestProposal = proposal;
-                                bestProposer = msg.getSender();
-                                accept = reply;
-                                logger.log(Level.INFO, "Best proposal is: {0}", bestProposal.getAvailability() );
-                                bestProposal.printProposal();
-                            }*/
 
                         }
                             /*if (msg.getPerformative() == ACLMessage.REFUSE) {
@@ -373,11 +368,11 @@ public class BuyerAgent extends Agent implements Serializable {
     }
 
     private void createLogger() {
-        logger.setLevel(Level.CONFIG);
-        /*String logfile = this.getLocalName();
-        log = new Log(logfile);*/
+        /*logger.setLevel(Level.SEVERE);
+        String logfile = this.getLocalName();
+        log = new Log(logfile);
         // create an instance of Log at the top of the file, as you would do with log4j
-        /*FileHandler fh;   // true forces append mode
+        FileHandler fh;   // true forces append mode
         try {
             fh = new FileHandler("Buyer logFile.log", false);
             SimpleFormatter sf = new SimpleFormatter();
@@ -428,8 +423,9 @@ public class BuyerAgent extends Agent implements Serializable {
 
     private double utilityCalculation(double priceOffered, long availabilityOffered) {
         long proposedDeparture = scheduledDepartureMilli + availabilityOffered;
-        System.out.println("((double) scheduledDepartureMilli / proposedDeparture) " + ((double) scheduledDepartureMilli / proposedDeparture));
-        return (1-((((double) scheduledDepartureMilli / proposedDeparture) + (1.0 - (priceOffered / maximumDisruptionCost))) / 2));
+        System.out.println("((double) scheduledDepartureMilli / proposedDeparture) " + ((double) availabilityOffered/ delayInMilli));
+        System.out.println("Real utility is " + (((1.0 -(double) availabilityOffered/ delayInMilli) + (1.0 - (priceOffered / maximumDisruptionCost))) / 2));
+        return (((1.0 -(double) availabilityOffered/ delayInMilli) + (1.0 - (priceOffered / maximumDisruptionCost))) / 2);
 
     }
 

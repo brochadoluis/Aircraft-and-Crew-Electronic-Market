@@ -11,7 +11,7 @@ public class Data {
     // Case , Data
     private ArrayList<ArrayList<String> > data;
     private int lineSize = 0;
-    private final int numFeatures = 3;
+    private final int numFeatures = 4;
     private CBR cbr;
     private Log log;
 

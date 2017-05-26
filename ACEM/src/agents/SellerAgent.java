@@ -28,7 +28,9 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.logging.FileHandler;
 import java.util.logging.Level;
+import java.util.logging.SimpleFormatter;
 
 
 /**
@@ -155,22 +157,6 @@ public class SellerAgent extends Agent implements Serializable{
                         logger.log(Level.INFO, "Agent {0}: CFP received from {1}. Action is {2} ", new Object[]{getLocalName(), cfp.getSender().getLocalName(), cfp.getContent()});
                         logger.log(Level.INFO, "Round n(upon receiving CFP: {0})", round);
                         Proposal rejectedProposal = null;
-                        /*try {
-                            System.out.println("Vou meter isto a dormir");
-                            Thread.sleep(3000);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }*/
-                        /*if (true){
-                            ACLMessage refuse = cfp.createReply();
-                            refuse.setPerformative(ACLMessage.REFUSE);
-                            try {
-                                refuse.setContentObject("Refuse already sent. Just waiting for the end to come");
-                            } catch (IOException e) {
-                                e.printStackTrace();
-                            }
-                            return refuse;
-                        }*/
                         /**
                          * First Round means that sellers need to fetch for available resources in the DataBase
                          * The first round is identif ied by having both, Resource's Queue and Negotiation Historic HashMap, empty
@@ -197,15 +183,15 @@ public class SellerAgent extends Agent implements Serializable{
                             proposal = applyCommentsToProposal(rejectedProposal);
                             logger.log(Level.INFO, "proposal toString = {0}", rejectedProposal.toString());
                             if (refused){
-                                ACLMessage refuse2 = cfp.createReply();
-                                refuse2.setPerformative(ACLMessage.REFUSE);
+                                ACLMessage refuse = cfp.createReply();
+                                refuse.setPerformative(ACLMessage.REFUSE);
                                 try {
                                     System.out.println("Refuse already sent. Just waiting for the end to come");
-                                    refuse2.setContentObject("Refuse already sent. Just waiting for the end to come");
+                                    refuse.setContentObject("Refuse already sent. Just waiting for the end to come");
                                 } catch (IOException e) {
                                     e.printStackTrace();
                                 }
-                                return refuse2;
+                                return refuse;
                             }
                         }
                         if (!flightsList.isEmpty()) {
@@ -277,14 +263,15 @@ public class SellerAgent extends Agent implements Serializable{
                             logger.log(Level.INFO, "Agent {0}: Action successfully performed", getLocalName());
                             System.out.println("Resources to be leased: ");
 //                            flightsList.get(1).printFlight();
-                            /*for (int i = 0; i < flightsList.size(); i++){
+                            for (int i = 0; i < flightsList.size(); i++){
                                 flightsList.get(i).printFlight();
-                            }*//*
+                            }/*
                             System.out.println("TailNum is " + flightsList.get(flightUnderNegotiationIndex).getAircraft().getTail_number() + " Costing " + flightsList.get(flightUnderNegotiationIndex).getPrice() + " with "
                                     + flightsList.get(flightUnderNegotiationIndex).getAvailability() + " ms delay. Departure at: " + (scheduledDeparture +
                                     flightsList.get(flightUnderNegotiationIndex).getAvailability()) + ". This is the flight with index: " + flightUnderNegotiationIndex);*/
                             //update outcome of this/previous negotiation round
                             Proposal acceptedProposal = retrieveProposalContent(accept);
+                            System.out.println("Utility of proposal accepted is " + utilityCalculation(acceptedProposal.getPrice()));
                             System.out.println("Accept is ");
                             acceptedProposal.printProposal();
 
@@ -401,26 +388,22 @@ public class SellerAgent extends Agent implements Serializable{
     }
 
     private Proposal applyCommentsToProposal(Proposal rejectedProposal) {
-        /**
-         * TODO: change here
-         */
         Flight currentFlightUnderNegotiation = flightsList.get(flightUnderNegotiationIndex);
         System.out.println("Flight Under Negotiation = " + flightUnderNegotiationIndex);
-//        double displacementCosts = sumResourcesPrice(queueHead);
         ArrayList<String> newCase = createCase(rejectedProposal);
         ArrayList<String> action = new ArrayList<>();
-        ArrayList<String> comments = new ArrayList<>();// = findSimilarCases(rejectedProposal);
-        ArrayList<Integer> similarCases = findSimilarCases(rejectedProposal);
-        System.out.println("Similar Cases = " + similarCases);
+        ArrayList<String> comments = new ArrayList<>();
+        ArrayList<Integer> mostSimilarCases = findSimilarCases(rejectedProposal,newCase);
+        System.out.println("Similar Cases = " + mostSimilarCases);
         int similarCase;
         boolean foundEqualCase = false;
-        if (similarCases.size() > 1){
-            similarCase = softmax(similarCases);
+        if (mostSimilarCases.size() > 1){
+            similarCase = softmax(mostSimilarCases);
             System.out.println("Similar Case Chosen is: " + similarCase);
             foundEqualCase = true;
         }
         else{
-            similarCase = similarCases.get(0);
+            similarCase = mostSimilarCases.get(0);
             if (similarCase != -1 && similarCase != -2){
                 foundEqualCase = true;
             }
@@ -428,19 +411,27 @@ public class SellerAgent extends Agent implements Serializable{
         switch (similarCase){
             case -1:
                 //Aqui procura um recurso diferente com os mesmos comentarios, replica açao e cria novo caso, com o recurso em questao
+                //portanto, vou procurar mais um antes de dizer que a action e igual aos comentarios do rejectedProposal
                 //Distance != 0 => index = -1. Does the same as the following, it just adds the case to the dataset
                 System.out.println("Dunno what to do");
                 //As there are no similar cases, current case is added to the dataSet
                 System.out.println("Estou a a adiconar um caso porque não existe caso igual");
                 System.out.println("Adicionar novo caso, quando nao ha casos iguais. Caso: " + newCase);
+                newCase.set(3,"");
                 System.out.println("New case = " + newCase);
-                dataSet.addCase(newCase);
+                //Falta escolher 1 do arraylist
+                ArrayList<Integer> similarCases = findSimilarCases(rejectedProposal,newCase);
+                System.out.println("Similar Cases - " + similarCases);
+                //PRocessa. e mudar para o recurso em negociaçao
                 comments.add(rejectedProposal.getPriceComment());
                 comments.add(rejectedProposal.getAvailabilityComment());
                 System.out.println("rejectedProposal.getPriceComment() " +rejectedProposal.getPriceComment() );
                 System.out.println("rejectedProposal.getAvailabilityComment() " + rejectedProposal.getAvailabilityComment());
                 action.add(rejectedProposal.getPriceComment());
                 action.add(rejectedProposal.getAvailabilityComment());
+                System.out.println("RUN = " + resourceUnderNegotiation);
+                newCase.set(3,resourceUnderNegotiation);
+                dataSet.addCase(newCase);
                 System.out.println("Comments quando a distancia nao e 0 = " + action);
                 break;
             case -2:
@@ -465,43 +456,19 @@ public class SellerAgent extends Agent implements Serializable{
                 break;
         }
         actionsToTake = new ArrayList<>();
-        String priceComment = comments.get(0);
-        String availabilityComment = comments.get(1);
+        /*String priceComment = comments.get(0);
+        String availabilityComment = comments.get(1);*/
         String priceAction = "";
         String availabilityAction = "";
+        double minRequiredUtility = 0;
 
         System.out.println("Array action is: " + action );
-        switch (action.get(0)){
-            case OK:
-                priceAction = OK;
-//                System.out.println("OK received on price. Nothing to change");
-                break;
-            case LOWER:
-                priceAction = LOWER;
-                System.out.println("LOWER received on price. Going to decrease price by 10%");
-                System.out.println("LOWER: New price = " + rejectedProposal.getPrice()*0.9);
-                if (rejectedProposal.getPrice()*0.9 < minimumPrice){
-                    rejectedProposal.setPrice(minimumPrice);
-                }
-                else
-                    rejectedProposal.setPrice(rejectedProposal.getPrice()*0.9);
-                break;
-            case MUCH_LOWER:
-                priceAction = MUCH_LOWER;
-                System.out.println("MUCH LOWER received on price. Going to decrease price by 25%");
-                System.out.println("LOWER: New price = " + rejectedProposal.getPrice()*0.75);
-                if (rejectedProposal.getPrice()*0.75 < minimumPrice){
-                    rejectedProposal.setPrice(minimumPrice);
-                }
-                else
-                    rejectedProposal.setPrice(rejectedProposal.getPrice()*0.75);
-                break;
-            default:
-                break;
-        }
+
+
         switch (action.get(1)){
             case OK:
                 availabilityAction = OK;
+                minRequiredUtility = 0.8;
 //                System.out.println("OK received on availability. Nothing to change");
                 break;
             case LOWER:
@@ -510,6 +477,7 @@ public class SellerAgent extends Agent implements Serializable{
                     System.out.println("There are flights with better availability -1.");
                     */
                 availabilityAction = LOWER;
+                minRequiredUtility = 0.4;
                 /*}
                 else {
                     availabilityAction = OK;
@@ -527,9 +495,41 @@ public class SellerAgent extends Agent implements Serializable{
                 }*/
                 System.out.println("There are flights with better availability -3.");
                 availabilityAction = MUCH_LOWER;
+                minRequiredUtility = 0.1;
                 //Something to check this
 //                rejectedProposal.setAvailability((long) (rejectedProposal.getAvailability()*0.6));
 //                System.out.println("MUCH LOWER: New availability = " + rejectedProposal.getAvailability()*0.6);
+                break;
+            default:
+                break;
+        }
+        switch (action.get(0)){
+            case OK:
+                priceAction = OK;
+//                System.out.println("OK received on price. Nothing to change");
+                break;
+            case LOWER:
+                priceAction = LOWER;
+                System.out.println("LOWER received on price. Going to decrease price by 10%");
+                System.out.println("LOWER: New price = " + rejectedProposal.getPrice()*0.9);
+                if (rejectedProposal.getPrice() * 0.9 > minimumPrice &&
+                        checkUtilityInterval(rejectedProposal.getPrice() * 0.9,0.4,0.8)){
+                    rejectedProposal.setPrice(rejectedProposal.getPrice() * 0.9);
+                }
+                else
+                    rejectedProposal.setPrice(0);
+                break;
+            case MUCH_LOWER:
+                priceAction = MUCH_LOWER;
+                System.out.println("MUCH LOWER received on price. Going to decrease price by 25%");
+                System.out.println("LOWER: New price = " + rejectedProposal.getPrice()*0.75);
+                if (rejectedProposal.getPrice()*0.75 > minimumPrice &&
+                        checkUtilityInterval(rejectedProposal.getPrice() * 0.75,0.1,0.4)){
+                    rejectedProposal.setPrice(rejectedProposal.getPrice() * 0.75);
+
+                }
+                else
+                    rejectedProposal.setPrice(0);
                 break;
             default:
                 break;
@@ -540,8 +540,8 @@ public class SellerAgent extends Agent implements Serializable{
         actionsToTake.add(availabilityAction);
         System.out.println("Actions to take is: " + actionsToTake);
         if (foundEqualCase){
-            System.out.println("dataSet.checkIfActionExists(actionsToTake,similarCases) " + dataSet.checkIfActionExists(actionsToTake,similarCases));
-            if (!dataSet.checkIfActionExists(actionsToTake,similarCases)){
+            System.out.println("dataSet.checkIfActionExists(actionsToTake,similarCases) " + dataSet.checkIfActionExists(actionsToTake,mostSimilarCases));
+            if (!dataSet.checkIfActionExists(actionsToTake,mostSimilarCases)){
                 System.out.println(" Nao existe, bota adicionar mais um");
                 ArrayList<String> updatedCase = new ArrayList<>();
                 updatedCase.add(comments.get(0));
@@ -559,17 +559,21 @@ public class SellerAgent extends Agent implements Serializable{
         //Veriricar se flightUnderNegotiationIndex+1 nao esta fora do array.
         if (flightUnderNegotiationIndex < flightsList.size()-1){
             if (hasBetterUtility(rejectedProposal, flightsList.get(flightUnderNegotiationIndex+1))){
+                logger.log(Level.SEVERE, "Round when it isnt necessary to update resource: {0}" ,round);
+                logger.log(Level.SEVERE, "Not necessary to update Resource Under Negotiation. Current is: {0} ", currentFlightUnderNegotiation);
                 System.out.println("o indice do voo a ser negociado e: " + flightUnderNegotiationIndex);
                 System.out.println("a utilidade deste recurso e maior do que a utilidade do seguinte.");
                 proposal = new Proposal(rejectedProposal.getPrice(), rejectedProposal.getAvailability(),this.getAID());
             }
             else{
-
+                logger.log(Level.SEVERE, "Round when it is necessary to update resource: {0} " ,round);
+                logger.log(Level.SEVERE, "Must update Resource Under Negotiation. Current is: {0} ", currentFlightUnderNegotiation);
                 System.out.println("EASTER EGGS");
                 System.out.println("Next resource has better utility than the updated proposal");
                 flightUnderNegotiationIndex++;
                 System.out.println("Flight is: " + flightUnderNegotiationIndex);
                 currentFlightUnderNegotiation = flightsList.get(flightUnderNegotiationIndex);
+                logger.log(Level.SEVERE, "New Resource Under Negotiation is: {0} ", currentFlightUnderNegotiation);
                 System.out.println("Prtinting rejected proposal");
                 rejectedProposal.printProposal();
                 double priceFactor = priceFactorCalculation(currentFlightUnderNegotiation.getAvailability());
@@ -594,6 +598,11 @@ public class SellerAgent extends Agent implements Serializable{
             logger.log(Level.SEVERE, "Could not save to Database File {0}", e);
         }
         return proposal;
+    }
+
+    private boolean checkUtilityInterval(double price, double lowerBound, double upperBound) {
+        return Math.abs(utilityCalculation(price) - lowerBound) > 0.000000000001 &&
+                Math.abs(utilityCalculation(price) - upperBound) < 0.000000000001;
     }
 
     private int softmax (ArrayList<Integer> similarCases){
@@ -623,48 +632,7 @@ public class SellerAgent extends Agent implements Serializable{
         return -5;
     }
 
-    private int simulatedAnnealing(ArrayList<Integer> similarCases) {
-        double temperature = 1000;
-        double coolingRate = 0.003;
-        int randomNum = ThreadLocalRandom.current().nextInt(0, similarCases.size());
-        int currentSolution = similarCases.get(randomNum);
-        int best = currentSolution;
-        while (temperature > 1){
-            int newSolution = currentSolution;
-            double currentEnergy = Double.parseDouble(dataSet.getOutcome(currentSolution));
-            int randomNum2 = ThreadLocalRandom.current().nextInt(0, similarCases.size());
-            while (randomNum == randomNum2) {
-                randomNum2 = ThreadLocalRandom.current().nextInt(0, similarCases.size());
-            }
-            double neighbourEnergy = Double.parseDouble(dataSet.getOutcome(similarCases.get(randomNum2)));
-
-            // Decide if we should accept the neighbour
-            if (acceptanceProbability(currentEnergy, neighbourEnergy, temperature) > Math.random()) {
-                currentSolution = newSolution;
-            }
-
-            double bestEnergy = Double.parseDouble(dataSet.getOutcome(best));
-            // Keep track of the best solution found
-            if (currentEnergy < bestEnergy){
-                best = currentSolution;
-            }
-
-            // Cool system
-            temperature *= 1-coolingRate;
-        }
-        return best;
-    }
-
-    public double acceptanceProbability(double energy, double newEnergy, double temperature) {
-        // If the new solution is better, accept it
-        if (newEnergy < energy) {
-            return 1.0;
-        }
-        // If the new solution is worse, calculate an acceptance probability
-        return Math.exp((energy - newEnergy) / temperature);
-    }
-
-    private ArrayList<Integer> findSimilarCases(Proposal rejectedProposal) {
+    private ArrayList<Integer> findSimilarCases(Proposal rejectedProposal, ArrayList<String> newCase) {
         if (round > 1){
             Proposal proposalToEvaluate = negotiationHistoric.get(round - 1);
             System.out.println("negotiationHistoric.get(round - 1) " + negotiationHistoric.get(round - 1));
@@ -672,7 +640,7 @@ public class SellerAgent extends Agent implements Serializable{
             double previousRoundCaseEvaluation = evaluateOutcome(proposalToEvaluate,rejectedProposal);
             dataSet.addOutcome(previousRoundCaseEvaluation);
             System.out.println();
-            ArrayList<String> newCase = createCase(rejectedProposal);
+//            ArrayList<String> newCase = createCase(rejectedProposal);
             ArrayList<String> action;
             if(dataSet.getSize() > 1){
                 ArrayList<Integer> similarCaseIndexes = dataSet.getEuclideanDistances(newCase);
@@ -686,7 +654,6 @@ public class SellerAgent extends Agent implements Serializable{
 
                 if(similarCaseIndex > 0 ){System.out.println("euclideanDistance = " + dataSet.getLine(similarCaseIndex));
 
-//                similarCaseIndex++;
                     if(recencyOutcome){
                         //recency on outcome
                         Proposal previousProposal = negotiationHistoric.get(round - 1);
@@ -780,9 +747,9 @@ public class SellerAgent extends Agent implements Serializable{
     }
 
     private void createLogger() {
-        logger.setLevel(Level.FINE);
+        /*logger.setLevel(Level.SEVERE);
         // create an instance of Log at the top of the file, as you would do with log4j
-        /*FileHandler fh = null;   // true forces append mode
+        FileHandler fh = null;   // true forces append mode
         try {
             String logName = this.getLocalName() + " logFile.log";
             fh = new FileHandler(logName, false);
@@ -1372,6 +1339,7 @@ public class SellerAgent extends Agent implements Serializable{
         System.out.println("Price Offered " + priceOffered);
         System.out.println("Minimum Price " + minimumPrice);
         System.out.println("Maximum Price " + maximumPrice);
+        System.out.println("Seller utility is: " + ((priceOffered - minimumPrice)/(maximumPrice-minimumPrice)));
         return ((priceOffered - minimumPrice)/(maximumPrice-minimumPrice));
     }
 
