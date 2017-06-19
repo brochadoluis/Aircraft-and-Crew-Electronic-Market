@@ -130,10 +130,10 @@ public class Flight implements Serializable{
             }
             return true;
         }*/
-        System.out.println("this cost " +this.cost);
-        System.out.println("aflight cost " + aFlight.getPrice());
-        System.out.println("this availability " + this.availability);
-        System.out.println("aflight availability "+ aFlight.getAvailability());
+////        System.out.println("this cost " +this.cost);
+////        System.out.println("aflight cost " + aFlight.getPrice());
+////        System.out.println("this availability " + this.availability);
+////        System.out.println("aflight availability "+ aFlight.getAvailability());
         return ((Math.abs(this.cost - aFlight.getPrice())< 0.000000000001) &&
                 Math.abs(this.availability - aFlight.getAvailability()) < 0.000000000001);
     }
@@ -142,6 +142,34 @@ public class Flight implements Serializable{
         System.out.print("Aircraft = " + this.aircraft.getTail_number()+ ", Crew Members =  " + this.crewMembers +
                 ", fleet =  " + this.fleet +", departure =  " + this.scheduledDeparture +
                 ", trip time =  " + this.tripTime + " and " + availability + " ms delay and costing " +this.cost + ".\n");
+    }
+    @Override
+    public String toString(){
+        ArrayList<String> list = new ArrayList<>();
+        if (this.aircraft != null){
+            list.add("Aircraft");
+            list.add(this.aircraft.getTail_number());
+        }
+        list.add("Crew Members");
+//        System.out.println("Crew Members " + this.crewMembers);
+        for (CrewMember cm: this.crewMembers) {
+//            System.out.println("cm = " + cm);
+            list.add(String.valueOf(cm.getCrewMemberId()));
+            list.add(cm.getCategory());
+        }
+
+        list.add("Fleet");
+        list.add(this.fleet);
+        list.add("Availability");
+        list.add(String.valueOf(this.availability));
+        list.add("milliseconds");
+        list.add("Price");
+        list.add(String.valueOf(this.cost));
+        String flight = "";
+        for (String s:list) {
+            flight+=(s+" ");
+        }
+        return flight;
     }
 
 }

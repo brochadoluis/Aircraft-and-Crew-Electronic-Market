@@ -60,7 +60,7 @@ public class CBR {
         for(int i = 1; i < dataSet.getSize(); i++){
             euclideanDistances.add(calculateEuclideanDistance(newCase,dataSet.getLine(i)));
         }
-        //find lowest value index
+        //creates array with indexes with euclidean distance = 0
         ArrayList<Integer> similarCasesIndexes = findLowest(euclideanDistances);
         return similarCasesIndexes;
     }
@@ -74,28 +74,29 @@ public class CBR {
     private double calculateEuclideanDistance(ArrayList<String> newCase, ArrayList<String> dataSetCase){
         double sum = 0.0;
         double euclideanDistance;
+//        System.out.println("newCase.get(3) " + newCase.get(3));
         if (newCase.get(3).isEmpty()){
             newCase.set(3,dataSetCase.get(3));
-            System.out.println("ALTEROU PARA " + newCase.get(3));
+////            System.out.println("ALTEROU PARA " + newCase.get(3));
         }
         ArrayList<Integer> newCaseInt = CommentsToInt(newCase);
         ArrayList<Integer> dataSetCaseInt = CommentsToInt(dataSetCase);
-        System.out.println("calculateEuclideanDistance NEWCASE " + newCase );
-        System.out.println("calculateEuclideanDistance DATASETCASE  " + dataSetCase);
+////        System.out.println("calculateEuclideanDistance NEWCASE " + newCase );
+////        System.out.println("calculateEuclideanDistance DATASETCASE  " + dataSetCase);
         for(int i = 0; i < newCaseInt.size(); i++){
 //            log.write(" newCase.get(i) " + newCase.get(i));
 //            log.write(" data.get(0).get(i) " + data.getLine(0).get(i));
 //            log.write("(newCaseInt.get(i) - dataSetCaseInt.get(i) " + (newCaseInt.get(i) - dataSetCaseInt.get(i)));
-            System.out.println("newCaseInt.get(i) " + newCaseInt.get(i));
-            System.out.println("newCase.get(i) " + newCase.get(i));
-            System.out.println("dataSetCaseInt.get(i) " + dataSetCaseInt.get(i));
-            System.out.println("dataSetCase.get(i) " + dataSetCase.get(i));
+////            System.out.println("newCaseInt.get(i) " + newCaseInt.get(i));
+////            System.out.println("newCase.get(i) " + newCase.get(i));
+////            System.out.println("dataSetCaseInt.get(i) " + dataSetCaseInt.get(i));
+////            System.out.println("dataSetCase.get(i) " + dataSetCase.get(i));
             sum += Math.pow(newCaseInt.get(i) - dataSetCaseInt.get(i),2.0) * featuresWeights.get(data.getLine(0).get(i));
 
         }
         euclideanDistance = Math.sqrt(sum);
-        System.out.println("THE SUM BEFORE SQRT IS: " + sum);
-        System.out.println("calculateEuclideanDistance NEWCASE  value = " + euclideanDistance);
+////        System.out.println("THE SUM BEFORE SQRT IS: " + sum);
+////        System.out.println("calculateEuclideanDistance NEWCASE  value = " + euclideanDistance);
 //        log.write("Euclidean Distance = " + euclideanDistance);
 
         return euclideanDistance;
@@ -104,9 +105,9 @@ public class CBR {
     private ArrayList<Integer> findLowest(ArrayList<Double> euclideanDistances) {
         ArrayList<Integer> indexes = new ArrayList<>();
         for(int i = 0; i < euclideanDistances.size(); i++){
-            System.out.println(" euclideanDistances.get( "+ i +" ) = " + euclideanDistances.get(i));
-            System.out.println(" (euclideanDistances.get( "+ i +" ) == 0.0) = " + (euclideanDistances.get(i) == 0.0));
-            System.out.println(" euclideanDistances.get( "+ i +" ) = " + euclideanDistances.get(i));
+////            System.out.println(" euclideanDistances.get( "+ i +" ) = " + euclideanDistances.get(i));
+////            System.out.println(" (euclideanDistances.get( "+ i +" ) == 0.0) = " + (euclideanDistances.get(i) == 0.0));
+////            System.out.println(" euclideanDistances.get( "+ i +" ) = " + euclideanDistances.get(i));
             if(euclideanDistances.get(i) == 0.0){
                 indexes.add(i+1);
             }
@@ -166,7 +167,7 @@ public class CBR {
                     featuresWeights.put(features.get(i),2);
                     break;
                 case "Resource Under Negotiation":
-                    featuresWeights.put(features.get(i),3);
+                    featuresWeights.put(features.get(i),4);
             }
         }
 //        log.write("features weights " + featuresWeights);

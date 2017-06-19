@@ -57,7 +57,6 @@ public class BuyerAgent extends Agent implements Serializable {
     private double crewDisruptionCost = 0;
     private String company = "";
     private ArrayList<AID> sellers = new ArrayList<>();
-    private ArrayList<AID> finalRoundReceivers = new ArrayList<>();
     private int negotiationParticipants;
     private Integer round = 0;
     private long scheduledDepartureMilli;
@@ -86,7 +85,6 @@ public class BuyerAgent extends Agent implements Serializable {
             logger.log(Level.INFO, "Worst case scenario {0} € as cost.", maximumDisruptionCost);
             DFServices dfs = registerInDFS();
             findReceivers(dfs);
-            finalRoundReceivers = (ArrayList<AID>) sellers.clone();
             /**
              * Connection to DB
              * Found disruption
@@ -157,17 +155,17 @@ public class BuyerAgent extends Agent implements Serializable {
                     while (e.hasMoreElements()) {
                         ACLMessage msg = (ACLMessage) e.nextElement();
                         if (negotiationParticipants == 0){
-                            System.out.println("Nao ha mais participantes");
-                            System.out.println("Best is: " + proposal.getSender());
-                            bestProposal.printProposal();
+//                            System.out.println("Nao ha mais participantes");
+//                            System.out.println("Best is: " + proposal.getSender());
+//                            bestProposal.printProposal();
                             bestProposer = bestProposal.getSender();
-                            System.out.println("msg ali = " + msg);
+//                            System.out.println("msg ali = " + msg);
                             ACLMessage reply = msg.createReply();
                             reply.setPerformative(ACLMessage.CFP);
                             acceptances.addElement(reply);
                             accept = reply;
 //                        logger.log(Level.INFO, "Accepting proposal {0}, from responder {1}", new Object[]{bestProposal, bestProposer.getName()});
-                            accept.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
+                            //accept.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
                             setRefuses(acceptances);
                             try {
                                 accept.setContentObject(bestProposal);
@@ -183,7 +181,7 @@ public class BuyerAgent extends Agent implements Serializable {
                             reply.setPerformative(ACLMessage.CFP);
                             acceptances.addElement(reply);
                             proposal = retrieveProposalContent(msg);
-                            System.out.println("Proposal =");
+//                            System.out.println("Proposal =");
                             evaluateProposal(proposal);
 
                         }
@@ -194,10 +192,14 @@ public class BuyerAgent extends Agent implements Serializable {
                     // Accept the proposal of the best proposer
                     if (accept != null) {
                         //sets one to accept and all others to refuse
+//                        System.out.println("Best Proposal price " + bestProposal.getPrice());
+//                        System.out.println("Best Proposal avail " + bestProposal.getAvailability());
                         logger.log(Level.INFO, "Accepting proposal {0}, from responder {1}", new Object[]{bestProposal, bestProposer.getName()});
                         accept.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
                         setRefuses(acceptances);
                         logger.log(Level.INFO, "Round n (After Accept): {0} ", round);
+                        logger.log(Level.INFO, "Accepted proposal from round: {0} ", bestProposal.getRound());
+////                        System.out.println("Accepted proposal from round: " + bestProposal.getRound() + " and with price = " + bestProposal.getPrice());
                         //voltar a ler a lista de sellers, identificar a melhor proposta e enviar accept para esse e reject para todos os outros
                     }
                     //accept == null => send another cfp
@@ -227,16 +229,17 @@ public class BuyerAgent extends Agent implements Serializable {
     private void setRefuses(Vector acceptances){
         for(int i = 0; i < acceptances.size(); i++) {
             ACLMessage reject = (ACLMessage) acceptances.get(i);
+////            System.out.println("ACLMessage) acceptances.get(i) " + acceptances.get(i));
             if(reject.getPerformative() != ACLMessage.ACCEPT_PROPOSAL)
                 reject.setPerformative(ACLMessage.REJECT_PROPOSAL);
         }
 
-        System.out.println("Acceptances size = " + acceptances.size());
+////        System.out.println("Acceptances size = " + acceptances.size());
     }
 
     private ACLMessage sendFirstCFP() {
         logger.log(Level.INFO, "Round n (Before first CFP): {0}", round);
-        disruptedFlight.printFlight();
+//        disruptedFlight.printFlight();
         Proposal cfp = new Proposal(0F, 0L, disruptedFlight, this.getAID());
         ACLMessage msg = new ACLMessage(ACLMessage.CFP);
         for (AID seller : sellers) {
@@ -244,14 +247,14 @@ public class BuyerAgent extends Agent implements Serializable {
         }
         msg.setProtocol(FIPANames.InteractionProtocol.FIPA_ITERATED_CONTRACT_NET);
         // We want to receive a reply in 10 secs
-        msg.setReplyByDate(new Date(System.currentTimeMillis() + 10000));
+        //msg.setReplyByDate(new Date(System.currentTimeMillis() + 10000));
         try {
             msg.setContentObject(cfp);
             updateRound();
         } catch (IOException e) {
             logger.log(Level.SEVERE, "Could not set message's content: {0} ", e);
         }
-        System.out.println("msg = " + msg);
+////        System.out.println("msg = " + msg);
         return msg;
     }
 
@@ -280,64 +283,56 @@ public class BuyerAgent extends Agent implements Serializable {
 //                if (bestProposal.getAvailability() != 0) {
                 double priceInterval = proposedPrice/maximumDisruptionCost;
                 double availabilityInterval = proposedAvailability / (double) delayInMilli;
-                System.out.println("Percentage interval " + availabilityInterval);
-                System.out.println("Price interval " + priceInterval);
-                if (isBetween(0.60,1, availabilityInterval)) {
+                if (isBetween(0.60,1.1, availabilityInterval)) {
                     proposalWithComments.setAvailabilityComment(MUCH_LOWER);
-                    System.out.println("Comment Availability set to MUCH LOWER");
                     if (isBetween(0,0.15, priceInterval)){
                         proposalWithComments.setPriceComment(OK);
-                        System.out.println("Comment Price set to OK 1");
                     }
                     else if (isBetween(0.15,0.45, priceInterval)){
                         proposalWithComments.setPriceComment(LOWER);
-                        System.out.println("Comment Price set to LOWER 1");
                     }
                     else if (isBetween(0.45,1.1, priceInterval)){
                         proposalWithComments.setPriceComment(MUCH_LOWER);
-                        System.out.println("Comment Price set to MUCH LOWER 1");
                     }
-                    else
+                    else {
                         proposalWithComments.setPriceComment(LOWER);
+                    }
                 } else if (isBetween(0.20,0.60, availabilityInterval)) {
                     proposalWithComments.setAvailabilityComment(LOWER);
-                    System.out.println("Comment Availability set to LOWER");
                     if (isBetween(0,0.45, priceInterval)){
                         proposalWithComments.setPriceComment(OK);
-                        System.out.println("Comment Price set to OK 2");
                     }
                     else if (isBetween(0.45,0.80, priceInterval)){
                         proposalWithComments.setPriceComment(LOWER);
-                        System.out.println("Comment Price set to LOWER 2");
                     }
                     else if (isBetween(0.80,1.1, priceInterval)){
                         proposalWithComments.setPriceComment(MUCH_LOWER);
                     }
+                    else
+                        proposalWithComments.setPriceComment(MUCH_LOWER);
                 } else if (isBetween(0,0.20, availabilityInterval)) {
-                    System.out.println("proposedAvailability " + proposedAvailability);
                     proposalWithComments.setAvailabilityComment(OK);
-                    System.out.println("Comment Availability set to OK");
-                    if (isBetween(0,0.80, priceInterval)){
+                    if (isBetween(0,0.70, priceInterval)){
                         proposalWithComments.setPriceComment(OK);
-                        System.out.println("Comment Price set to OK 3");
                     }
-                    else if (isBetween(0.80,1.1, priceInterval)){
+                    else if (isBetween(0.70,1.1, priceInterval)){
                         proposalWithComments.setPriceComment(LOWER);
-                        System.out.println("Comment Price set to LOWER 3");
                     }
+                    else
+                        proposalWithComments.setPriceComment(MUCH_LOWER);
                 }
 
                 //Considers only price or availability too? If depends on availability also, the better the availability comment, the more expensive it can be
 //                if (proposalWithComments.getAvailabilityComment().equalsIgnoreCase(OK) && isBetween(0,maximumDisruptionCost*0.3, priceInterval)){
                 /*if (isBetween(maximumDisruptionCost*0.6,maximumDisruptionCost, priceInterval)){
                     proposalWithComments.setPriceComment(MUCH_LOWER);
-                    System.out.println("Comment Price set to MUCH LOWER");
+//                    System.out.println("Comment Price set to MUCH LOWER");
                 } else if (isBetween(maximumDisruptionCost*0.15,maximumDisruptionCost*0.6, priceInterval)) {
                     proposalWithComments.setPriceComment(LOWER);
-                    System.out.println("Comment Price set to LOWER");
+//                    System.out.println("Comment Price set to LOWER");
                 } else if (isBetween(0,maximumDisruptionCost*0.15, priceInterval)) {
                     proposalWithComments.setPriceComment(OK);
-                    System.out.println("Comment Price set to OK");
+//                    System.out.println("Comment Price set to OK");
                 }*/
                 /*} else
                     proposalWithComments.setAvailabilityComment(OK);*/
@@ -394,23 +389,28 @@ public class BuyerAgent extends Agent implements Serializable {
     private void evaluateProposal(Proposal proposal) {
         logger.log(Level.INFO, " Proposal ");
         logger.log(Level.INFO, "Agent {2} send {0} price and {1} availability ", new Object[]{proposal.getPrice(), proposal.getAvailability(), proposal.getSender()});
-        proposal.printProposal();
+//        proposal.printProposal();
         double priceOffered = proposal.getPrice();
         long availabilityOffered = proposal.getAvailability();
         double utility = utilityCalculation(priceOffered, availabilityOffered);
-        System.out.println("Current prtoposal utility " + utility);
+////        System.out.println("Current prtoposal utility " + utility);
+        logger.log(Level.INFO, "Current Proposal utility {0}", utility);
         if (bestProposal == null) {
-            System.out.println("Adicionei proposta");
-            proposal.printProposal();
+//            System.out.println("Adicionei proposta");
+//            proposal.printProposal();
             bestProposal = proposal;
+            bestProposal.setRound(round);
         } else {
             double bestProposalUtility;
             bestProposalUtility = utilityCalculation(bestProposal.getPrice(), bestProposal.getAvailability());
-            System.out.println("best proposal utility " + bestProposalUtility);
-            System.out.println("Current proposal utility " + utility);
+            logger.log(Level.INFO, "Best Proposal utility {0}", bestProposalUtility);
+////            System.out.println("best proposal utility " + bestProposalUtility);
+////            System.out.println("Current proposal utility " + utility);
+            logger.log(Level.INFO, "Current Proposal utility {0}", utility);
             if (utility > bestProposalUtility) {
-                System.out.println("Best Proposal Updated");
+//                System.out.println("Best Proposal Updated");
                 bestProposal = proposal;
+                bestProposal.setRound(round);
             }
             else if (utility == bestProposalUtility){
                 if (priceOffered < bestProposal.getPrice()){
@@ -423,8 +423,8 @@ public class BuyerAgent extends Agent implements Serializable {
 
     private double utilityCalculation(double priceOffered, long availabilityOffered) {
         long proposedDeparture = scheduledDepartureMilli + availabilityOffered;
-        System.out.println("((double) scheduledDepartureMilli / proposedDeparture) " + ((double) availabilityOffered/ delayInMilli));
-        System.out.println("Real utility is " + (((1.0 -(double) availabilityOffered/ delayInMilli) + (1.0 - (priceOffered / maximumDisruptionCost))) / 2));
+//        System.out.println("((double) scheduledDepartureMilli / proposedDeparture) " + ((double) availabilityOffered/ delayInMilli));
+//        System.out.println("Real utility is " + (((1.0 -(double) availabilityOffered/ delayInMilli) + (1.0 - (priceOffered / maximumDisruptionCost))) / 2));
         return (((1.0 -(double) availabilityOffered/ delayInMilli) + (1.0 - (priceOffered / maximumDisruptionCost))) / 2);
 
     }
@@ -432,8 +432,8 @@ public class BuyerAgent extends Agent implements Serializable {
     private void findReceivers(DFServices dfs) {
         /* Saves to an ArrayList all other agents registered in DFService  */
         sellers = dfs.searchDF(this);
-        System.out.println("Sellers = " + sellers);
-        System.out.println("Sellers Size " + sellers.size());
+//        System.out.println("Sellers = " + sellers);
+//        System.out.println("Sellers Size " + sellers.size());
         logger.log(Level.INFO, " Sellers: ");
         for (AID seller : sellers) {
             logger.log(Level.INFO, " {0}, ", seller.getLocalName());
@@ -465,15 +465,15 @@ public class BuyerAgent extends Agent implements Serializable {
 //            if ("aircraft".equals(resourceType)){
             queryToVariables(rs, rsmd, i);
 //            }
-            System.out.println(rsmd.getColumnLabel(i) + " : " + rs.getString(i));
+//            System.out.println(rsmd.getColumnLabel(i) + " : " + rs.getString(i));
         }
-        System.out.println("TripTime " + scheduledDeparture);
+//        System.out.println("TripTime " + scheduledDeparture);
         DateTime dateTimeTripTime = scheduledDeparture.plus(0,0,0,tripTime.getHour(),tripTime.getMinute(),tripTime.getSecond(),0,DateTime.DayOverflow.FirstDay);
         scheduledDepartureMilli = scheduledDeparture.getMilliseconds(TimeZone.getTimeZone("GMT"));
         tripTimeMilli = ((dateTimeTripTime.getMilliseconds(TimeZone.getTimeZone("GMT"))) - scheduledDepartureMilli);
         delayInMilli = delayInMinutes * 60 * 1000;
-        System.out.println("delayInMilli " + delayInMilli);
-        System.out.println("");
+//        System.out.println("delayInMilli " + delayInMilli);
+//        System.out.println("");
         if (isAircraftNeeded){
             maximumDisruptionCost = aircraftDisruptionCost;
         }
@@ -482,19 +482,20 @@ public class BuyerAgent extends Agent implements Serializable {
     }
 
     private void getResourceType(String resourceAffected) {
-        String dbRow = "SELECT * FROM thesis.buyer WHERE \uFEFFresource_affected LIKE '" + resourceAffected + "';";
+        String dbRow = "SELECT * FROM sample.buyer WHERE \uFEFFresource_affected LIKE '" + resourceAffected + "';";
+//        String dbRow = "SELECT * FROM sample.buyer WHERE \uFEFFresource_affected LIKE '" + resourceAffected + "';";
         ResultSet unidentifiedResource = db.fetchDataBase(dbRow);
         if (unidentifiedResource != null){
             try {
                 unidentifiedResource.next();
-                resourceType = unidentifiedResource.getString("missing_resource");
-                System.out.println("Resource Type  " + resourceType);
+                resourceType = unidentifiedResource.getString("missing_resources");
+//                System.out.println("Resource Type  " + resourceType);
                 prepareQuery(resourceType, resourceAffected);
             } catch (SQLException e) {
                 // handle any errors
-                System.out.println("SQLException: " + e.getMessage());
-                System.out.println("SQLState: " + e.getSQLState());
-                System.out.println("VendorError: " + e.getErrorCode());
+//                System.out.println("SQLException: " + e.getMessage());
+//                System.out.println("SQLState: " + e.getSQLState());
+//                System.out.println("VendorError: " + e.getErrorCode());
             }
         }
     }
@@ -526,7 +527,7 @@ public class BuyerAgent extends Agent implements Serializable {
                     "WHERE \uFEFFresource_affected LIKE '" + resourceAffected + "';";*/
             query = "SELECT origin, destination, scheduled_time_of_departure, departure_delay_in_minutes, \n" +
                     "estimated_trip_time, total_pax, crew_res_type, cost_disr_aircraft, cost_disr_crew\n" +
-                    "FROM test.buyer\n" +
+                    "FROM sample.buyer\n" +
                     "WHERE \uFEFFresource_affected = '" + resourceAffected + "';";
             isAircraftNeeded = true;
         }
@@ -534,17 +535,17 @@ public class BuyerAgent extends Agent implements Serializable {
             // All crew is needed
             query = "SELECT CPT, OPT, SCC, CC, CAB,scheduled_time_of_departure, departure_delay_in_minutes, \n" +
                     "estimated_trip_time, crew_res_type, cost_disr_aircraft, cost_disr_crew\n" +
-                    "FROM test.buyer\n" +
+                    "FROM sample.buyer\n" +
                     "WHERE \uFEFFresource_affected LIKE '" + resourceAffected + "';";
         }
         else if (CPT.equalsIgnoreCase(resourceType) || OPT.equalsIgnoreCase(resourceType)
                 || SCC.equalsIgnoreCase(resourceType) || CC.equalsIgnoreCase(resourceType)
                 || CAB.equalsIgnoreCase(resourceType)) {
             //only 1 crew member type, or more than 1?
-            query = "SELECT  \uFEFFmissing_resource,scheduled_time_of_departure, departure_delay_in_minutes, \n" +
+            query = "SELECT  missing_resources,scheduled_time_of_departure, departure_delay_in_minutes, \n" +
                     "estimated_trip_time, crew_res_type, cost_disr_aircraft, cost_disr_crew, \n" +
-                    "CPT, OPT, SCC, CC, CAB\n" +
-                    "FROM test.buyer\n" +
+                    " "+resourceType+"\n" +
+                    "FROM sample.buyer\n" +
                     "WHERE \uFEFFresource_affected LIKE '" + resourceAffected + "';";
         }
         ResultSet rs = db.fetchDataBase(query);
@@ -579,12 +580,12 @@ public class BuyerAgent extends Agent implements Serializable {
             disruptedFlight.setAircraft(aircraftNeeded);
         }
         //change to accept one of each
-        if (CPT.equalsIgnoreCase(resourceType) || OPT.equalsIgnoreCase(resourceType)
+        else if (CPT.equalsIgnoreCase(resourceType) || OPT.equalsIgnoreCase(resourceType)
                 || SCC.equalsIgnoreCase(resourceType) || CC.equalsIgnoreCase(resourceType)
                 || CAB.equalsIgnoreCase(resourceType)){
             addCrewMemberToFlight(disruptedFlight, resourceType);
         }
-        if ("all crew".equalsIgnoreCase(resourceType)){
+        else if ("all crew".equalsIgnoreCase(resourceType)){
             addCrewMemberToFlight(disruptedFlight, CPT);
             addCrewMemberToFlight(disruptedFlight, OPT);
             addCrewMemberToFlight(disruptedFlight, SCC);
@@ -599,7 +600,6 @@ public class BuyerAgent extends Agent implements Serializable {
         if (CPT.equalsIgnoreCase(resourceType)){
             CrewMember cm = verifyCrewMember(flight, nCPT, resourceType);
             if (cm != null) {
-                System.out.println("Cm " + cm.getCategory());
                 flight.addCrewMember(cm);
             }
         }
@@ -620,13 +620,18 @@ public class BuyerAgent extends Agent implements Serializable {
         }
         if (CAB.equalsIgnoreCase(resourceType)){
             CrewMember cm = verifyCrewMember(flight, nCAB, resourceType);
-            if (cm != null)
+//            System.out.println("NCAB = " + nCAB);
+            if (cm != null){
+//                System.out.println("Cm " + cm.getCategory());
+//                System.out.println("Cm Number is  " + cm.getNumber());
                 flight.addCrewMember(cm);
+            }
         }
     }
 
     private CrewMember verifyCrewMember(Flight flight, int crewMemberNumber, String crewMemberCategory) {
-        if (crewMemberNumber != 0) {
+//        if (crewMemberNumber != 0) {
+        if (crewMemberNumber >= 0) {
             CrewMember cm = new CrewMember();
             cm.setNumber(crewMemberNumber);
             cm.setCategory(crewMemberCategory);
@@ -696,5 +701,6 @@ public class BuyerAgent extends Agent implements Serializable {
         } catch (FIPAException fe) {
             logger.log(Level.SEVERE, "Could not deregister agent: ", fe);
         }
+        System.exit(0);
     }
 }

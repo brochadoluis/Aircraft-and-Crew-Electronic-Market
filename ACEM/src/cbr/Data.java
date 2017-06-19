@@ -116,7 +116,7 @@ public class Data {
         int index = -1;
         double maximum = 0.0;
         for (int i = 0; i < indexes.size(); i++){
-            System.out.println("Indexes at " + i + " = " +indexes.get(i) );
+//            System.out.println("Indexes at " + i + " = " +indexes.get(i) );
             double currentEvaluation = Double.parseDouble(getOutcome(indexes.get(i)));
             if(index < 0 && maximum <= currentEvaluation){
                 maximum = currentEvaluation;
@@ -167,9 +167,9 @@ public class Data {
             int index = indexes.get(i);
             ArrayList<String> caseAction = new ArrayList<>();
             caseAction.add(data.get(index).get(lineSize-3));
-            System.out.println("data.get(index).get(lineSize-3) " + data.get(index).get(lineSize-3) );
+//            System.out.println("data.get(index).get(lineSize-3) " + data.get(index).get(lineSize-3) );
             caseAction.add(data.get(index).get(lineSize-2));
-            System.out.println("data.get(index).get(lineSize-2) " + data.get(index).get(lineSize-2));
+//            System.out.println("data.get(index).get(lineSize-2) " + data.get(index).get(lineSize-2));
             if (action.get(0).equalsIgnoreCase(caseAction.get(0)) && action.get(1).equalsIgnoreCase(caseAction.get(1)))
                 return true;
         }
@@ -185,11 +185,11 @@ public class Data {
     }
 
     public ArrayList<String> getNFeatures(int numberOfFeaturesToReturn, int line) {
-        System.out.println("numberOfFeaturesToReturn " + numberOfFeaturesToReturn);
-        System.out.println("line " + line);
+//        System.out.println("numberOfFeaturesToReturn " + numberOfFeaturesToReturn);
+//        System.out.println("line " + line);
         ArrayList<String> featuresRequired = new ArrayList<>();
         for(int i = 0; i < numberOfFeaturesToReturn; i++){
-            System.out.println("numberOfFeaturesToReturn i is " + i);
+//            System.out.println("numberOfFeaturesToReturn i is " + i);
             featuresRequired.add(data.get(line).get(i));
         }
         return featuresRequired;

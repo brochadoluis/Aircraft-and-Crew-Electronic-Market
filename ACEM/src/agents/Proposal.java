@@ -2,11 +2,8 @@ package agents;
 
 import jade.core.AID;
 import utils.Flight;
-import utils.Resource;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Created by Luis on 03/03/2017.
@@ -20,9 +17,18 @@ public class Proposal implements Serializable {
      * ou seja, nao importa se entrega antes de tempo, importa que o voo sera cumprido sem atraso
      * e cada incremento significa 1 minuto de atraso
      */
+    private int round;
     private String priceComment;
     private String availabilityComment;
     private AID sender;
+
+    public int getRound() {
+        return round;
+    }
+
+    public void setRound(int round) {
+        this.round = round;
+    }
 
     public Proposal(double price, long availability, Flight disruptedFlight, AID sender) {
         this.price = price;
