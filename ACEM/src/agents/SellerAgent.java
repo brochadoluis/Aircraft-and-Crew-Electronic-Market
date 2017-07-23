@@ -505,6 +505,13 @@ public class SellerAgent extends Agent implements Serializable{
                         comments.add(rejectedProposal.getPriceComment());
                         comments.add(rejectedProposal.getAvailabilityComment());
                     }
+                    else
+                    {
+                        comments = dataSet.getNFeatures(2,similarCase);
+                        action = dataSet.getAction(similarCase);
+                        newCase.set(4,action.get(0));
+                        newCase.set(5,action.get(1));
+                    }
                 }
                 //PRocessa. e mudar para o recurso em negociaçao
                 newCase.set(3,resourceUnderNegotiation);

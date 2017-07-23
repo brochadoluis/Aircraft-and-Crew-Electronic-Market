@@ -62,6 +62,7 @@ public class BuyerAgent extends Agent implements Serializable {
     private long scheduledDepartureMilli;
     private long tripTimeMilli;
     private long delayInMilli;
+    private int crewMemberSalary;
     private Proposal proposal;
     private String resourceAffected = "";
     private Loader db = new Loader();
@@ -219,6 +220,7 @@ public class BuyerAgent extends Agent implements Serializable {
                     logger.log(Level.SEVERE, "Agent {0} successfully performed the requested action", inform.getSender().getName());
                     logger.log(Level.INFO, "Round n (Handle Inform): {0}", round);
                     takeDown();
+                    System.exit(0);
                 }
             });
         } else {
@@ -342,6 +344,7 @@ public class BuyerAgent extends Agent implements Serializable {
             } catch (IOException e) {
                 logger.log(Level.SEVERE, "Could not set message's content: {0} ", e);
             }
+
         }
     }
 
@@ -425,7 +428,7 @@ public class BuyerAgent extends Agent implements Serializable {
         long proposedDeparture = scheduledDepartureMilli + availabilityOffered;
 //        System.out.println("((double) scheduledDepartureMilli / proposedDeparture) " + ((double) availabilityOffered/ delayInMilli));
 //        System.out.println("Real utility is " + (((1.0 -(double) availabilityOffered/ delayInMilli) + (1.0 - (priceOffered / maximumDisruptionCost))) / 2));
-        return (((1.0 -(double) availabilityOffered/ delayInMilli) + (1.0 - (priceOffered / maximumDisruptionCost))) / 2);
+        return (((1.0 -(double) availabilityOffered/ delayInMilli))*0.2 + (1.0 - (priceOffered / maximumDisruptionCost))*0.8);
 
     }
 
@@ -472,13 +475,17 @@ public class BuyerAgent extends Agent implements Serializable {
         scheduledDepartureMilli = scheduledDeparture.getMilliseconds(TimeZone.getTimeZone("GMT"));
         tripTimeMilli = ((dateTimeTripTime.getMilliseconds(TimeZone.getTimeZone("GMT"))) - scheduledDepartureMilli);
         delayInMilli = delayInMinutes * 60 * 1000;
+        double tripTimeInHours = (double)tripTimeMilli/3600000;
 //        System.out.println("delayInMilli " + delayInMilli);
 //        System.out.println("");
         if (isAircraftNeeded){
             maximumDisruptionCost = aircraftDisruptionCost;
         }
-        else
+        else if ("all crew".equalsIgnoreCase(resourceType)) {
             maximumDisruptionCost = crewDisruptionCost;
+        }
+        else
+            maximumDisruptionCost = (crewMemberSalary * tripTimeInHours) * 1.5;
     }
 
     private void getResourceType(String resourceAffected) {
@@ -502,6 +509,7 @@ public class BuyerAgent extends Agent implements Serializable {
 
     private void prepareQuery(String resourceType, String resourceAffected) {
         String query = "";
+        String salaryQuery = "";
         if ("aircraft".equals(resourceType)) {
             //Aircraft + Crew are need, but the agent just asks for an aircraft and the seller knows that the crew is included
             /*query = "SELECT origin, destination, scheduled_time_of_departure, departure_delay_in_minutes, \n" +
@@ -547,6 +555,20 @@ public class BuyerAgent extends Agent implements Serializable {
                     " "+resourceType+"\n" +
                     "FROM sample.buyer\n" +
                     "WHERE \uFEFFresource_affected LIKE '" + resourceAffected + "';";
+            salaryQuery ="SELECT MAX(hourly_salary) AS salary FROM crew_member WHERE rank LIKE '"+ resourceType +"';" ;
+            ResultSet rs = db.fetchDataBase(salaryQuery);
+            if (rs != null) {
+                ResultSetMetaData rsmd;
+                try {
+                    rsmd = rs.getMetaData();
+                    while (rs.next()) {
+                        extractSalary(rs, rsmd);
+                    }
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+            }
+            System.out.println("Salary is: " + crewMemberSalary);
         }
         ResultSet rs = db.fetchDataBase(query);
         if (rs != null) {
@@ -692,6 +714,15 @@ public class BuyerAgent extends Agent implements Serializable {
                 break;
         }
     }
+    private void extractSalary(ResultSet rs, ResultSetMetaData rsmd) throws SQLException {
+        switch (rsmd.getColumnLabel(1)) {
+            case "salary":
+                crewMemberSalary = Integer.parseInt(rs.getString(1));
+                break;
+            default:
+                break;
+        }
+    }
 
     private void takeDown(Agent a) {
         logger.log(Level.INFO, "Agent {0} has been unregistered from DFS. ", a.getLocalName());
@@ -701,6 +732,5 @@ public class BuyerAgent extends Agent implements Serializable {
         } catch (FIPAException fe) {
             logger.log(Level.SEVERE, "Could not deregister agent: ", fe);
         }
-        System.exit(0);
     }
 }
