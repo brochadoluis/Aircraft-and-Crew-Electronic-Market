@@ -33,9 +33,6 @@ with the company’s own resources.
 
 In short, this is an optimization problem in the Air Transportation Domain, trying to reduce a company costs when a flight is delayed, by trying to get the delayed resource from another company. It is related to [MASDIMA](http://masdima.com/home/) platform because the purpose of this project was to understand if a leasing contract with another company could be cheaper than a solution with its own resources.
 
-This project was developed in JAVA SE using Intellij IDEA.
-For the sake of agents representing companies, negotiation and learning, JADE was used.
-The learning algorithm used was Case-based Reasoning because it seemed the best fit to the sutiation (agents learn from each round outcome).
-The data used was provided by the mentors.
+This project was developed in JAVA SE using IntelliJ IDEA. For the sake of agents representing companies, negotiation, and learning, JADE was used. The learning algorithm used was Case-based Reasoning because it seemed the best fit for the situation (agents learn from each round outcome). The data used was provided by the mentors.
 
 You can check the full report [here](https://repositorio-aberto.up.pt/handle/10216/106220) or a paper produced from this project, [here](http://www.scitepress.org/DigitalLibrary/Link.aspx?doi=10.5220/0006582401760183)
